@@ -1,0 +1,17 @@
+# Dependencies
+
+# python -m pip install torch yfinance scikit-learn matplotlib pandas numpy
+
+# Setup: python -m venv crypto_env 
+
+# Install: pip install -r requirements.txt
+# Run: python crypto_model.py
+
+torch>=2.2.0
+yfinance>=0.2.36
+numpy>=1.26.0
+pandas>=2.1.0
+scikit-learn>=1.3.0
+matplotlib>=3.8.0
+anthropic>=0.25.0
+streamlit>=1.32.0
