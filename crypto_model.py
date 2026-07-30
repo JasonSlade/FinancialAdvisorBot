@@ -1,8 +1,12 @@
 """
 Crypto ML Model for Financial Advisor Bot
-==========================================
-Predicts next-day closing prices for selected cryptocurrencies
-using a PyTorch LSTM — compatible with Python 3.13+
+
+Pipeline for the prediction system. 
+
+Downloads raw data -> train LSTM -> predict next day closing price
+
+to run: python crypto_model.py
+
 """
 
 # to run: python crypto_model.py
@@ -23,7 +27,7 @@ warnings.filterwarnings("ignore")
 #1. DATA COLLECTION
 
 def fetch_crypto_data(symbols: list[str], days: int = 730) -> dict[str, pd.DataFrame]:
-    """Fetch OHLCV data via yfinance for each symbol."""
+    # Fetch OHLCV data from yfinance 
     import yfinance as yf
     from datetime import datetime, timedelta
 
@@ -39,12 +43,12 @@ def fetch_crypto_data(symbols: list[str], days: int = 730) -> dict[str, pd.DataF
             continue
 
         # Flatten MultiIndex columns that newer yfinance versions produce
-        # e.g. ('Close', 'BTC-USD') → 'Close'
+        # e.g. ('Close', 'BTC-USD') -> 'Close'
         if isinstance(df.columns, pd.MultiIndex):
             df.columns = df.columns.get_level_values(0)
 
         df = df[["Open", "High", "Low", "Close", "Volume"]].copy()
-        # Ensure no duplicate columns remain after flattening
+        # No duplicate columns remain after flattening
         df = df.loc[:, ~df.columns.duplicated()]
         df.dropna(inplace=True)
         data[sym] = df
@@ -153,11 +157,9 @@ def save_model(model, scaler, symbol):
 
 # 3. DATA PREPARATION
 
-
-
 def prepare_sequences(df, feature_cols, target_col="Close",
                       lookback=30, test_ratio=0.2):
-    """Scale features and build sliding-window sequences."""
+    # Scale features and build sliding-window sequences
     data   = df[feature_cols].values
     scaler = MinMaxScaler(feature_range=(0, 1))
     scaled = scaler.fit_transform(data)
@@ -181,14 +183,15 @@ def prepare_sequences(df, feature_cols, target_col="Close",
 
 
 # 4. PYTORCH LSTM MODEL 
+# refrence: https://docs.pytorch.org/docs/2.12/generated/torch.nn.LSTM.html
 class CryptoLSTM(nn.Module):
     """
-    Stacked LSTM for next-day price prediction.
+    Stacked LSTM for next-day price prediction
 
     Architecture:
         LSTM(128, layers=2, dropout=0.2)
-        Linear(128 → 64) + ReLU
-        Linear(64  → 1)
+        Linear(128 -> 64) + ReLU
+        Linear(64  -> 1)
     """
     def __init__(self, n_features: int, hidden_size: int = 128,
                  num_layers: int = 2, dropout: float = 0.2):
@@ -198,7 +201,7 @@ class CryptoLSTM(nn.Module):
             hidden_size=hidden_size,
             num_layers=num_layers,
             dropout=dropout,
-            batch_first=True,           # input shape: (batch, seq, features)
+            batch_first=True,           
         )
         self.fc = nn.Sequential(
             nn.Linear(hidden_size, 64),
@@ -208,7 +211,7 @@ class CryptoLSTM(nn.Module):
 
     def forward(self, x):
         out, _ = self.lstm(x)           # out: (batch, seq, hidden)
-        return self.fc(out[:, -1, :])   # use last timestep → (batch, 1)
+        return self.fc(out[:, -1, :])   # use last timestep -> (batch, 1)
 
 
 def build_model(n_features: int) -> CryptoLSTM:
@@ -216,14 +219,15 @@ def build_model(n_features: int) -> CryptoLSTM:
 
 
 # 5. TRAINING 
+# ADAM - https://www.geeksforgeeks.org/deep-learning/adam-optimizer/
 
 def train_model(model: CryptoLSTM,
                 X_train, y_train, X_test, y_test,
                 epochs=50, batch_size=32, lr=1e-3, patience=10):
     """
     Train with Adam + MSE loss.
-    Implements manual early stopping (patience epochs without val improvement).
-    Returns list of (train_loss, val_loss) per epoch.
+    Implements manual early stopping (patience epochs without val improvement)
+    Returns list of (train_loss, val_loss) per epoch
     """
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"  Training on: {device}")
@@ -253,11 +257,16 @@ def train_model(model: CryptoLSTM,
         train_losses = []
         for xb, yb in train_dl:
             xb, yb = xb.to(device), yb.to(device)
+            # reset previoud gradients
             optimizer.zero_grad()
+            # make a prediction
             pred = model(xb).squeeze()
+            # compare prediction with actual value
             loss = criterion(pred, yb)
+            # calculate how model should improve
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+            # update model weights
             optimizer.step()
             train_losses.append(loss.item())
 
@@ -296,7 +305,7 @@ def train_model(model: CryptoLSTM,
 # 6. EVALUATION 
 
 def evaluate_model(model, X_test, y_test, scaler, close_idx, n_features):
-    """Return MAE, RMSE, directional accuracy (all in USD)."""
+    # Return MAE, RMSE, directional accuracy (all in USD)
     from sklearn.metrics import mean_absolute_error, mean_squared_error
 
     model.eval()
@@ -360,7 +369,7 @@ def load_model(symbol, n_features):
 
 def run_pipeline(symbols, lookback=30, days=730,
                  epochs=50, batch_size=32, test_ratio=0.2):
-    # Full end-to-end pipeline for all symbols.
+    # Full end to end pipeline for all symbols
     print("\n" + "="*60)
     print(" CRYPTO ML PIPELINE  (PyTorch)")
     print("="*60)

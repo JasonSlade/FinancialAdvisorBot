@@ -1,5 +1,5 @@
 """
-evaluate_chatbot.py — Faithfulness Evaluation Script
+FactualConsistency.py  - Faithfulness Evaluation Script
 ======================================================
 Runs 12 test prompts through the real chatbot pipeline and
 automatically checks whether each response is faithful to the

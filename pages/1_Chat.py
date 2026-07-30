@@ -36,7 +36,7 @@ Your role:
 - Provide context using the technical indicators supplied
 - Always remind users that predictions are probabilistic, not guaranteed
 - Never recommend specific buy/sell amounts or tell users to risk money they cannot afford to lose
-- Keep responses concise -- 3 to 5 sentences unless the user asks for more detail
+- Keep responses concise - 3 to 5 sentences unless the user asks for more detail
 """
 
 
@@ -75,6 +75,7 @@ def detect_coin(message):
 
 
 # get prediction data from trained LSTM model
+# cache data
 @st.cache_data(ttl=300, show_spinner=False)
 def get_prediction_data(symbol):
 
@@ -279,5 +280,5 @@ if user_input:
     st.session_state.messages.append({"role": "assistant", "content": reply})
 
 
-    # reload page to update chat state
+    # reload page to update chat 
     st.rerun()

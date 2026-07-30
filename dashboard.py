@@ -1,6 +1,10 @@
 # pip install streamlit
-# run: streamlit run dashboard.py
+# run: 
+
 # emojis used for styling: https://emojidb.org/stock-emojis
+
+
+# to run: streamlit run dashboard.py
 
 """
 Documentation used:
