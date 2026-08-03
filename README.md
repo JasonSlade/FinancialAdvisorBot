@@ -19,7 +19,7 @@ price predictions and market analysis for Bitcoin, Ethereum, and BNB.
 ## Requirements
 
 - Python 3.11 or higher
-- An Anthropic API key (free to obtain — see Step 3 below)
+- An Anthropic API key (free to obtain - see Step 3 below)
 - Internet connection (for live data and the chatbot)
 
 ---
