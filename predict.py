@@ -24,6 +24,8 @@ import torch.nn as nn
 import random
 import time
 import yfinance as yf
+import os
+from pathlib import Path
 from datetime import datetime, timedelta
 from sklearn.preprocessing import MinMaxScaler
 
@@ -53,89 +55,169 @@ FEATURE_COLUMNS = [
 
 LOOKBACK = 30   # must match what you trained with
 
+# Check if in test mode
+
+def is_test_mode() -> bool:
+    value = os.environ.get("USE_TEST_DATA")
+
+    if value is None:
+        try:
+            import streamlit as st
+            value = st.secrets.get("USE_TEST_DATA", "false")
+        except Exception:
+            value = "false"
+
+    return str(value).lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
+
+# Test data
+
+TEST_DATA_DIR = Path(__file__).resolve().parent / "test_data"
+
+
+def load_test_data(
+    symbol: str,
+    days: int = 90,
+) -> pd.DataFrame:
+    """
+    Load bundled historical data when running in hosted test mode.
+    """
+
+    filename = symbol.replace("-", "_") + ".csv"
+    file_path = TEST_DATA_DIR / filename
+
+    if not file_path.exists():
+        raise FileNotFoundError(
+            f"Test data file not found: {file_path}"
+        )
+
+    df = pd.read_csv(
+        file_path,
+        index_col=0,
+        parse_dates=True,
+    )
+
+    required = [
+        "Open",
+        "High",
+        "Low",
+        "Close",
+        "Volume",
+    ]
+
+    missing = [
+        column
+        for column in required
+        if column not in df.columns
+    ]
+
+    if missing:
+        raise ValueError(
+            f"{filename} is missing columns: "
+            + ", ".join(missing)
+        )
+
+    df = df[required].copy()
+
+    for column in required:
+        df[column] = pd.to_numeric(
+            df[column],
+            errors="coerce",
+        )
+
+    df.dropna(inplace=True)
+    df.sort_index(inplace=True)
+
+    # Approximate the requested number of recent rows.
+    return df.tail(days)
+
 
 # step 1: fetch live data
-
 def fetch_live_data(
     symbol: str,
     days: int = 90,
-    max_attempts: int = 3,
 ) -> pd.DataFrame:
     """
-    Download recent OHLCV data with retries and exponential backoff.
+    Use bundled test data in hosted test mode.
 
-    The Streamlit dashboard caches the result, so this function should
-    normally only contact Yahoo once every cache period.
+    Otherwise, try Yahoo Finance and fall back to bundled data
+    if Yahoo is unavailable.
     """
 
-    if symbol not in {"BTC-USD", "ETH-USD", "BNB-USD"}:
-        raise ValueError(f"Unsupported symbol: {symbol}")
+    use_test_data = os.environ.get(
+        "USE_TEST_DATA",
+        "false",
+    ).lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
 
-    errors = []
+    if use_test_data:
+        return load_test_data(symbol, days)
 
-    for attempt in range(1, max_attempts + 1):
-        try:
-            df = yf.download(
-                tickers=symbol,
-                period=f"{days}d",
-                interval="1d",
-                auto_adjust=False,
-                progress=False,
-                threads=False,
-                timeout=30,
+    try:
+        df = yf.download(
+            tickers=symbol,
+            period=f"{days}d",
+            interval="1d",
+            auto_adjust=False,
+            progress=False,
+            threads=False,
+            timeout=30,
+        )
+
+        if df is None or df.empty:
+            raise RuntimeError(
+                f"Yahoo returned no data for {symbol}"
             )
 
-            if df is not None and not df.empty:
-                # Newer yfinance versions may return MultiIndex columns.
-                if isinstance(df.columns, pd.MultiIndex):
-                    df.columns = df.columns.get_level_values(0)
+        if isinstance(df.columns, pd.MultiIndex):
+            df.columns = df.columns.get_level_values(0)
 
-                required_columns = [
-                    "Open",
-                    "High",
-                    "Low",
-                    "Close",
-                    "Volume",
-                ]
+        required = [
+            "Open",
+            "High",
+            "Low",
+            "Close",
+            "Volume",
+        ]
 
-                missing = [
-                    column
-                    for column in required_columns
-                    if column not in df.columns
-                ]
+        missing = [
+            column
+            for column in required
+            if column not in df.columns
+        ]
 
-                if missing:
-                    raise RuntimeError(
-                        "Yahoo response is missing columns: "
-                        + ", ".join(missing)
-                    )
-
-                df = df[required_columns].copy()
-                df = df.loc[:, ~df.columns.duplicated()]
-                df.dropna(subset=["Close"], inplace=True)
-
-                if not df.empty:
-                    return df
-
-            errors.append(
-                f"Attempt {attempt}: Yahoo returned an empty response"
+        if missing:
+            raise RuntimeError(
+                "Yahoo response is missing columns: "
+                + ", ".join(missing)
             )
 
-        except Exception as exc:
-            errors.append(
-                f"Attempt {attempt}: "
-                f"{type(exc).__name__}: {exc}"
+        df = df[required].copy()
+        df = df.loc[:, ~df.columns.duplicated()]
+        df.dropna(inplace=True)
+
+        if df.empty:
+            raise RuntimeError(
+                f"Yahoo returned no usable data for {symbol}"
             )
 
-        if attempt < max_attempts:
-            delay = (2 ** attempt) + random.uniform(0, 1)
-            time.sleep(delay)
+        return df
 
-    raise RuntimeError(
-        f"Unable to retrieve {symbol} after {max_attempts} attempts. "
-        "Yahoo Finance may be rate limiting this server. "
-        + " | ".join(errors)
-    )
+    except Exception as exc:
+        print(
+            f"Yahoo Finance failed for {symbol}: {exc}. "
+            "Loading bundled test data instead."
+        )
+
+        return load_test_data(symbol, days)
 
 # step 2: engineer features
 

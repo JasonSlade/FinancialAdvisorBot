@@ -21,6 +21,7 @@ Requires:
 
 import streamlit as st
 import pandas as pd
+import os
 from datetime import datetime
 from predict import fetch_live_data, add_features, load_model, predict, FEATURE_COLUMNS
 
@@ -31,6 +32,16 @@ st.set_page_config(
     layout="wide",
 )
 
+# SHOW IF TEST DATA USED
+
+if os.environ.get(
+    "USE_TEST_DATA",
+    "false",
+).lower() in {"1", "true", "yes", "on"}:
+    st.info(
+        "🧪 Hosted demonstration mode: this app is using "
+        "bundled historical test data rather than live market data."
+    )
 # CUSTOM STYLING
 
 st.markdown("""
