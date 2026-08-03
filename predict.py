@@ -21,6 +21,8 @@ import numpy as np
 import pandas as pd
 import torch
 import torch.nn as nn
+import random
+import time
 import yfinance as yf
 from datetime import datetime, timedelta
 from sklearn.preprocessing import MinMaxScaler
@@ -54,30 +56,86 @@ LOOKBACK = 30   # must match what you trained with
 
 # step 1: fetch live data
 
-def fetch_live_data(symbol: str, days: int = 90) -> pd.DataFrame:
+def fetch_live_data(
+    symbol: str,
+    days: int = 90,
+    max_attempts: int = 3,
+) -> pd.DataFrame:
     """
-    Download the last x calendar days of OHLCV data.
-    We fetch more than 30 days because feature engineering (e.g. SMA_21,
-    rolling windows) needs earlier rows to calculate valid values for
-    the most recent 30 days.
+    Download recent OHLCV data with retries and exponential backoff.
+
+    The Streamlit dashboard caches the result, so this function should
+    normally only contact Yahoo once every cache period.
     """
-    end   = datetime.today()
-    start = end - timedelta(days=days)
 
-    df = yf.download(symbol, start=start, end=end, progress=False)
+    if symbol not in {"BTC-USD", "ETH-USD", "BNB-USD"}:
+        raise ValueError(f"Unsupported symbol: {symbol}")
 
-    if df.empty:
-        raise ValueError(f"No data returned for {symbol}. Check the symbol.")
+    errors = []
 
-    # Flatten MultiIndex columns that newer yfinance versions produce
-    if isinstance(df.columns, pd.MultiIndex):
-        df.columns = df.columns.get_level_values(0)
+    for attempt in range(1, max_attempts + 1):
+        try:
+            df = yf.download(
+                tickers=symbol,
+                period=f"{days}d",
+                interval="1d",
+                auto_adjust=False,
+                progress=False,
+                threads=False,
+                timeout=30,
+            )
 
-    df = df[["Open", "High", "Low", "Close", "Volume"]].copy()
-    df = df.loc[:, ~df.columns.duplicated()]
-    df.dropna(inplace=True)
-    return df
+            if df is not None and not df.empty:
+                # Newer yfinance versions may return MultiIndex columns.
+                if isinstance(df.columns, pd.MultiIndex):
+                    df.columns = df.columns.get_level_values(0)
 
+                required_columns = [
+                    "Open",
+                    "High",
+                    "Low",
+                    "Close",
+                    "Volume",
+                ]
+
+                missing = [
+                    column
+                    for column in required_columns
+                    if column not in df.columns
+                ]
+
+                if missing:
+                    raise RuntimeError(
+                        "Yahoo response is missing columns: "
+                        + ", ".join(missing)
+                    )
+
+                df = df[required_columns].copy()
+                df = df.loc[:, ~df.columns.duplicated()]
+                df.dropna(subset=["Close"], inplace=True)
+
+                if not df.empty:
+                    return df
+
+            errors.append(
+                f"Attempt {attempt}: Yahoo returned an empty response"
+            )
+
+        except Exception as exc:
+            errors.append(
+                f"Attempt {attempt}: "
+                f"{type(exc).__name__}: {exc}"
+            )
+
+        if attempt < max_attempts:
+            delay = (2 ** attempt) + random.uniform(0, 1)
+            time.sleep(delay)
+
+    raise RuntimeError(
+        f"Unable to retrieve {symbol} after {max_attempts} attempts. "
+        "Yahoo Finance may be rate limiting this server. "
+        + " | ".join(errors)
+    )
 
 # step 2: engineer features
 
