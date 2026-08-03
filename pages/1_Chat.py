@@ -41,8 +41,12 @@ Your role:
 
 
 # retrieve API key from environment variables
-api_key = os.environ.get("ANTHROPIC_API_KEY")
+#api_key = os.environ.get("ANTHROPIC_API_KEY")
 
+try:
+    api_key = st.secrets["ANTHROPIC_API_KEY"]
+except Exception:
+    api_key = os.environ.get("ANTHROPIC_API_KEY")
 
 # stop application if API key is missing
 if not api_key:
