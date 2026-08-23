@@ -9,12 +9,27 @@ import os
 # import functions used to fetch data, process indicators, load model + predict prices
 from predict import fetch_live_data, add_features, load_model, predict
 
+
+from rl_agent import get_trading_decision
+
+def add_cross_asset_features(df, btc_df):
+    df = df.copy()
+    shared_idx  = df.index.intersection(btc_df.index)
+    df          = df.loc[shared_idx]
+    btc_aligned = btc_df.loc[shared_idx]
+    df["BTC_Return_1d"] = btc_aligned["Return_1d"].values
+    df["BTC_Return_7d"] = btc_aligned["Return_7d"].values
+    df["BTC_RSI"]       = btc_aligned["RSI"].values
+    df["BTC_MACD"]      = btc_aligned["MACD"].values
+    df.dropna(inplace=True)
+    return df
+
 # configure Streamlit page settings
 st.set_page_config(page_title="Chat - Crypto Advisor", page_icon="chat", layout="wide")
 
 # page title and description
 st.title("Ask the Advisor")
-st.caption("Chat with an AI advisor backed by the trained LSTM model")
+st.caption("Chat with an AI advisor backed by the trained LSTM model and RL agent")
 
 
 # coins the chatbot currently supports
@@ -115,6 +130,20 @@ def get_prediction_data(symbol):
     # determine MACD signal direction
     macd_cross = "bullish crossover" if macd > macd_sig else "bearish crossover"
 
+    # get RL trading recomendation
+
+    try:
+        rl_df = df.copy()
+        if symbol != "BTC-USD":
+            btc_raw = fetch_live_data("BTC-USD", days=90)
+            btc_df  = add_features(btc_raw)
+            rl_df   = add_cross_asset_features(rl_df, btc_df)
+        rl = get_trading_decision(symbol, rl_df)
+        rl_action      = rl["action"]
+        rl_explanation = rl["explanation"]
+    except Exception:
+        rl_action      = "HOLD"
+        rl_explanation = "RL recommendation unavailable"
 
     # return structured prediction data
     return {
@@ -126,6 +155,8 @@ def get_prediction_data(symbol):
         "rsi": round(rsi, 1),
         "rsi_label": rsi_label,
         "macd_cross": macd_cross,
+        "rl_action":      rl_action,
+        "rl_explanation": rl_explanation,
     }
 
 
@@ -140,6 +171,8 @@ def format_prediction_context(data):
         f"- RSI: {data['rsi']} ({data['rsi_label']})\n"
         f"- MACD: {data['macd_cross']}\n"
         f"\nUse this data to answer the user's question in plain English.\n"
+        f"- RL RECOMMENDATION: {data['rl_action']}\n"
+        f"- RL REASONING: {data['rl_explanation']}\n"
     )
 
 

@@ -193,7 +193,7 @@ architecture, live prediction, and coin detection are all functioning.
 To run the chatbot faithfulness evaluation (requires API key):
 
 ```
-python evaluate_chatbot.py
+python FactualConsistency.py
 ```
 
 This runs 12 test prompts through the live chatbot and checks
