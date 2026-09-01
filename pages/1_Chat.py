@@ -1,5 +1,4 @@
-﻿
-# Chatbot page that connects API to LSTM prediction model with streamlit design
+﻿# Chatbot page that connects API to LSTM prediction model with streamlit design
 
 
 import streamlit as st
@@ -25,9 +24,91 @@ def add_cross_asset_features(df, btc_df):
     return df
 
 # configure Streamlit page settings
-st.set_page_config(page_title="Chat - Crypto Advisor", page_icon="chat", layout="wide")
+st.set_page_config(page_title="Chat - Crypto Advisor", layout="wide")
+
+
+# CUSTOM STYLING - same neutral theme as dashboard.py: white cards on a
+# light slate background, thin borders instead of solid colour fills,
+# Inter for text and JetBrains Mono for numbers.
+
+st.markdown("""
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600;700&display=swap');
+
+    :root {
+        --bg: #f1f5f9;
+        --surface: #ffffff;
+        --border: #e2e8f0;
+        --text: #0f172a;
+        --text-muted: #64748b;
+        --accent: #0d9488;
+        --accent-dark: #0f766e;
+        --positive: #15803d;
+        --positive-bg: #f0fdf4;
+        --positive-border: #16a34a;
+        --negative: #b91c1c;
+        --negative-bg: #fef2f2;
+        --negative-border: #dc2626;
+        --neutral: #92400e;
+        --neutral-bg: #fffbeb;
+        --neutral-border: #d97706;
+    }
+
+    html, body, [class*="css"] {
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+
+    .stApp {
+        background-color: var(--bg);
+    }
+
+    h1, h2, h3, h4 {
+        color: var(--text) !important;
+        font-family: 'Inter', sans-serif !important;
+        font-weight: 600 !important;
+    }
+
+    /* Small uppercase label used above a title for a report-like feel */
+    .eyebrow {
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--text-muted);
+        margin-bottom: 2px;
+    }
+
+    /* Buttons - secondary (quick questions, clear chat) and primary */
+    div.stButton > button {
+        border-radius: 6px;
+        border: 1px solid var(--border);
+        font-family: 'Inter', sans-serif;
+    }
+    div.stButton > button[kind="primary"] {
+        background-color: var(--accent);
+        border-color: var(--accent);
+    }
+    div.stButton > button[kind="primary"]:hover {
+        background-color: var(--accent-dark);
+        border-color: var(--accent-dark);
+    }
+
+    /* Notice box, matches dashboard.py's disclaimer/notice styling */
+    .notice-box {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 14px 18px;
+        font-size: 13px;
+        color: var(--text-muted);
+        margin-top: 20px;
+    }
+</style>
+""", unsafe_allow_html=True)
+
 
 # page title and description
+st.markdown('<div class="eyebrow">AI Trading Research Tool</div>', unsafe_allow_html=True)
 st.title("Ask the Advisor")
 st.caption("Chat with an AI advisor backed by the trained LSTM model and RL agent")
 
@@ -68,7 +149,7 @@ if not api_key:
     st.error(
         "ANTHROPIC_API_KEY environment variable not set. "
         "Set it in PowerShell before running streamlit: "
-        "$env:ANTHROPIC_API_KEY = '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'"
+        "$env:ANTHROPIC_API_KEY = 'your-api-key-here'"
     )
     st.stop()
 
@@ -192,6 +273,8 @@ if "messages" not in st.session_state:
 # sidebar options
 with st.sidebar:
 
+    st.markdown('<div class="eyebrow">Crypto Advisor</div>', unsafe_allow_html=True)
+
     # display preset questions
     st.header("Quick questions")
 
@@ -204,7 +287,7 @@ with st.sidebar:
 
     # add quick question buttons
     for q in quick_qs:
-        if st.button(q, use_container_width=True):
+        if st.button(q, width="stretch"):
             st.session_state.pending_input = q
 
 
@@ -212,7 +295,7 @@ with st.sidebar:
 
 
     # clear stored conversation history
-    if st.button("Clear chat", use_container_width=True):
+    if st.button("Clear chat", width="stretch"):
         st.session_state.messages = [
             {"role": "assistant", "content": "Chat cleared. Ask me about BTC, ETH, or BNB."}
         ]
@@ -249,7 +332,7 @@ if user_input:
         st.write(user_input)
 
 
-    # will store prediction values 
+    # will store prediction values
     extra_context = ""
 
     # detect coin mentioned by user
@@ -317,5 +400,5 @@ if user_input:
     st.session_state.messages.append({"role": "assistant", "content": reply})
 
 
-    # reload page to update chat 
+    # reload page to update chat
     st.rerun()

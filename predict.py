@@ -6,7 +6,7 @@
 predict.py: live next day price predictor
 
 Fetches today's live data, runs it through the trained model,
-and prints a prediction. 
+and prints a prediction.
 
 Can run this any time without retraining.
 
@@ -29,19 +29,13 @@ from pathlib import Path
 from datetime import datetime, timedelta
 from sklearn.preprocessing import MinMaxScaler
 
-# model definition (matches crypto_model.py)
+# model definition - imported directly from crypto_model.py instead of kept
+# as a local copy here, so the two files can never define the model
+# differently. (This used to be a duplicate class definition that silently
+# drifted out of sync when crypto_model.py's architecture changed - that's
+# what caused the state_dict load error.)
 
-class CryptoLSTM(nn.Module):
-    def __init__(self, n_features, hidden=128, layers=2, dropout=0.2):
-        super().__init__()
-        self.lstm = nn.LSTM(n_features, hidden, layers,
-                            dropout=dropout, batch_first=True)
-        self.fc = nn.Sequential(
-            nn.Linear(hidden, 64), nn.ReLU(), nn.Linear(64, 1)
-        )
-    def forward(self, x):
-        out, _ = self.lstm(x)
-        return self.fc(out[:, -1, :])
+from crypto_model import CryptoLSTM
 
 
 FEATURE_COLUMNS = [
@@ -222,7 +216,7 @@ def fetch_live_data(
 # step 2: engineer features
 
 def add_features(df: pd.DataFrame) -> pd.DataFrame:
-    # Same feature engineering as training 
+    # Same feature engineering as training
     def to_series(col):
         v = df[col].values
         if v.ndim > 1: v = v.flatten()
@@ -271,7 +265,7 @@ def add_features(df: pd.DataFrame) -> pd.DataFrame:
     return out
 
 
-# step 3: load saved model + scaler 
+# step 3: load saved model + scaler
 
 def load_model(symbol: str):
     # load the .pt weights and .pkl scaler saved during training
@@ -289,7 +283,7 @@ def load_model(symbol: str):
     return model, scaler
 
 
-# step 4: predict 
+# step 4: predict
 
 def predict(model, df: pd.DataFrame, scaler) -> float:
     """
@@ -329,7 +323,7 @@ def predict(model, df: pd.DataFrame, scaler) -> float:
 
 def run(symbols: list[str]):
     print(f"\n{'='*52}")
-    print(f"  Live predictions  —  {datetime.today().strftime('%Y-%m-%d %H:%M')}")
+    print(f"  Live predictions  -  {datetime.today().strftime('%Y-%m-%d %H:%M')}")
     print(f"{'='*52}")
 
     for symbol in symbols:
@@ -376,8 +370,22 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Live crypto price predictor")
     parser.add_argument(
         "--coins", nargs="+",
-        default=["BTC-USD", "ETH-USD", "BNB-USD"],
-        help="Symbols to predict (default: BTC-USD ETH-USD BNB-USD)"
+        default=[
+            "BTC-USD",
+            "ETH-USD",
+            "BNB-USD",
+            "XRP-USD",
+            "SOL-USD",
+            "ADA-USD",
+            "DOGE-USD",
+            "TRX-USD",
+            "LINK-USD",
+            "AVAX-USD",
+            "XLM-USD",
+            "LTC-USD",
+            "BCH-USD"
+        ],
+       help="Crypto symbols to predict"
     )
     args = parser.parse_args()
     run(args.coins)

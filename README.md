@@ -26,7 +26,7 @@ price predictions and market analysis for Bitcoin, Ethereum, and BNB.
 
 ## Setup instructions
 
-### Step 1 — Download the project
+### Step 1: Download the project
 
 Download the project folder and unzip it. You should have:
 
@@ -52,7 +52,7 @@ cd path/to/FinancialAdvisorBot
 
 ---
 
-### Step 2 — Install dependencies
+### Step 2: Install dependencies
 
 Install all required packages using:
 
@@ -65,7 +65,7 @@ and all other required libraries. This may take a few minutes.
 
 ---
 
-### Step 3 — Get an Anthropic API key
+### Step 3: Get an Anthropic API key
 
 The chatbot requires an Anthropic API key to function.
 
@@ -110,7 +110,7 @@ These files are required by the dashboard and chatbot.
 
 ---
 
-### Step 5 — Set your API key
+### Step 5: Set your API key
 
 Set your Anthropic API key as an environment variable.
 You must do this in the same terminal window you use to run the app.
@@ -143,7 +143,7 @@ It should print your key, not the word "api_key" or blank.
 
 ---
 
-### Step 6 — Run the dashboard
+### Step 6: Run the dashboard
 
 ```
 streamlit run dashboard.py
@@ -160,7 +160,7 @@ You will see:
 
 ---
 
-## Using the chatbot
+## Using the chatbot:
 
 Click Chat in the sidebar navigation to open the chatbot page.
 You can ask questions such as:
@@ -179,7 +179,7 @@ Note: the chatbot requires your ANTHROPIC_API_KEY to be set
 
 ---
 
-## Optional — run tests
+## Optional: run tests
 
 To verify everything is working correctly run the unit test suite:
 
