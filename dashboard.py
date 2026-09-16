@@ -19,7 +19,7 @@ Display modes:
     A single sidebar toggle switches between three views that share the same
     look and feel (same light theme, same card style throughout):
       - "Basic"    -> just the coin, its current price, and the AI
-                      recommendation with its one-line reason. Nothing else.
+                      recommendation with its one-line reason. 
       - "Simple"   -> Basic, plus price prediction, 7-day change, price
                       chart, and the technical indicator panel.
       - "Advanced" -> everything Simple has, plus a "Model Internals"
@@ -27,12 +27,12 @@ Display modes:
                       vector, Q-values, confidence gate) and explains each
                       one in plain English right next to it, with a couple
                       of real charts (Q-network output, MACD/Bollinger
-                      history) rather than just more prose.
+                      history) 
 
 Visual style:
     Neutral slate background, white cards with thin borders and a coloured
     left accent bar for status (rather than solid pastel fills), Inter for
-    text and JetBrains Mono for numbers - aimed at reading like a financial
+    text and JetBrains Mono for numbers, aimed at reading like a financial
     research tool rather than a consumer app.
 """
 
@@ -407,7 +407,7 @@ if not st.session_state.agreed_to_disclaimer:
     st.stop()
 
 
-# APP HEADER - logo + welcome text, plus a dismissible how-to-use box for
+# APP HEADER - logo + welcome text, plus dismissible 'how-to-use' box for
 # first time visitors. same session_state trick as the disclaimer above
 
 hero_col1, hero_col2, hero_col3 = st.columns([1, 2, 1])
@@ -428,7 +428,7 @@ if not st.session_state.dismissed_welcome:
         '<div class="notice-box">'
         '<strong>New here? Here is how it works, in three steps.</strong><br><br>'
         '1. Pick a coin in the sidebar.<br>'
-        '2. Read the AI recommendation, and in Simple or Advanced mode, what is driving it.<br>'
+        '2. Read the AI recommendation and in Simple or Advanced mode, see what is driving it.<br>'
         '3. Try it out with pretend money in the portfolio simulator, no real funds involved.'
         '</div>',
         unsafe_allow_html=True
@@ -513,6 +513,65 @@ def get_bb_info(bb_pct: float) -> tuple[str, str, str]:
             "not showing any extreme position relative to recent price history."
         )
 
+def get_track_record_info(beat_hold: bool, is_profitable: bool,
+                           test_return: float, test_buy_hold: float) -> tuple[str, str, str]:
+    """Returns (colour, label, plain English explanation) for how this
+    coin's strategy performed on its own historical backtest - the same
+    two checks the confidence gate itself uses."""
+    detail = (
+        f"On this coin's own test history, this strategy would have "
+        f"returned {test_return:+.2f}%, compared to {test_buy_hold:+.2f}% "
+        f"from simply buying and holding."
+    )
+    if beat_hold and is_profitable:
+        return "green", "Beat buy-and-hold, and was profitable", (
+            f"{detail} It did better than doing nothing, and it made money "
+            "in its own right - the strongest track record the gate checks for."
+        )
+    elif beat_hold and not is_profitable:
+        return "amber", "Beat buy-and-hold, but still lost money", (
+            f"{detail} It lost less than just holding would have, but it "
+            "was still a loss overall - worth knowing before treating this "
+            "as a straightforward win."
+        )
+    elif not beat_hold and is_profitable:
+        return "amber", "Profitable, but not better than holding", (
+            f"{detail} It made money, but simply buying and holding would "
+            "have made more."
+        )
+    else:
+        return "red", "Did not beat buy-and-hold, and lost money", (
+            f"{detail} Neither check passed - this is exactly the kind of "
+            "case the confidence gate exists to catch."
+        )
+
+
+def get_decisiveness_info(q_values: dict, action: str) -> tuple[str, str, str]:
+    """Returns (colour, label, plain English explanation) for how clearly
+    the DQN preferred its chosen action over the next-best alternative.
+    Thresholds below are a starting heuristic (gap size relative to the
+    spread across all three actions), not derived from a calibration
+    study - treat as indicative, not precise."""
+    ordered = sorted(q_values.values(), reverse=True)
+    top, second = ordered[0], ordered[1]
+    spread = max(q_values.values()) - min(q_values.values())
+    margin_pct = (top - second) / spread if spread > 1e-9 else 0.0
+
+    if margin_pct >= 0.3:
+        return "green", "Clearly preferred", (
+            f"{action} scored well ahead of the next-best option - the "
+            "network had a clear preference, not a close call."
+        )
+    elif margin_pct >= 0.1:
+        return "amber", "Moderately preferred", (
+            f"{action} scored somewhat ahead of the next-best option - a "
+            "reasonably clear preference, but not an overwhelming one."
+        )
+    else:
+        return "red", "Close call", (
+            f"{action} only narrowly beat the next-best option - the "
+            "network saw little difference between the top choices here."
+        )
 
 def render_indicator(colour: str, title: str, explanation: str):
     """Render an indicator row with a coloured left accent bar."""
@@ -934,6 +993,41 @@ if not IS_BASIC and raw_action and raw_action != action:
         f"downgraded to **{action}** by a safety check on this coin's past "
         f"backtest performance (see below for details in Advanced mode)."
     )
+
+
+# CONFIDENCE BLOCK - plain-English view of the same numbers the Advanced "Confidence gate" panel shows in code terms (state vector / Q-values /
+# gate). Lives here in Simple + Advanced, not Advanced-only, since how
+# much to trust a call matters even if you never open Model Internals.
+
+if not IS_BASIC:
+    st.markdown("**How much should you trust this?**")
+    st.caption(
+        "Two independent checks behind the recommendation above: how it "
+        "actually performed on past data, and how strongly the AI "
+        "preferred this action over the alternatives."
+    )
+
+    if test_return is not None:
+        track_colour, track_label, track_explanation = get_track_record_info(
+            beat_hold, is_profitable, test_return, test_buy_hold
+        )
+        render_indicator(track_colour, f"Past performance - {track_label}", track_explanation)
+    else:
+        st.caption(
+            "Past-performance check isn't wired into this live view yet - "
+            "see the note under Model Internals in Advanced mode."
+        )
+
+    if q_values:
+        conf_colour, conf_label, conf_explanation = get_decisiveness_info(q_values, action)
+        render_indicator(conf_colour, f"AI's decisiveness - {conf_label}", conf_explanation)
+    else:
+        st.caption(
+            "Decisiveness check isn't available yet - see the note under "
+            "Model Internals in Advanced mode."
+        )
+
+    st.markdown("")
 
 st.markdown("---")
 

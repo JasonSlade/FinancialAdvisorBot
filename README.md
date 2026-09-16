@@ -58,6 +58,12 @@ On Windows PowerShell that would be:
 $env:ANTHROPIC_API_KEY = 'your_key_here'
 ```
 
+If you already have a key, for example the one provided in my report (if you are the marker):
+
+```
+$env:ANTHROPIC_API_KEY = 'given_key_here'
+```
+
 ## Coins covered
 
 Thirteen coins in total: Bitcoin, Ethereum, BNB, XRP, Solana, Cardano, Dogecoin, TRON, Chainlink, Avalanche, Stellar, Litecoin, and Bitcoin Cash. Each one needs its own trained LSTM model and RL agent before the dashboard will show real data for it, run crypto_model.py and rl_agent.py first or the dashboard will just be missing that coin's files.
