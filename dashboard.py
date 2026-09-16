@@ -48,13 +48,13 @@ from rl_agent import get_trading_decision
 
 def add_cross_asset_features(df, btc_df):
     df = df.copy()
-    shared_idx  = df.index.intersection(btc_df.index)
-    df          = df.loc[shared_idx]
+    shared_idx = df.index.intersection(btc_df.index)
+    df = df.loc[shared_idx]
     btc_aligned = btc_df.loc[shared_idx]
     df["BTC_Return_1d"] = btc_aligned["Return_1d"].values
     df["BTC_Return_7d"] = btc_aligned["Return_7d"].values
-    df["BTC_RSI"]       = btc_aligned["RSI"].values
-    df["BTC_MACD"]      = btc_aligned["MACD"].values
+    df["BTC_RSI"] = btc_aligned["RSI"].values
+    df["BTC_MACD"] = btc_aligned["MACD"].values
     df.dropna(inplace=True)
     return df
 
@@ -65,11 +65,11 @@ def add_cross_asset_features(df, btc_df):
 def get_rl_decision(symbol):
     try:
         raw = fetch_live_data(symbol, days=90)
-        df  = add_features(raw)
+        df = add_features(raw)
         if symbol != "BTC-USD":
             btc_raw = fetch_live_data("BTC-USD", days=90)
-            btc_df  = add_features(btc_raw)
-            df      = add_cross_asset_features(df, btc_df)
+            btc_df = add_features(btc_raw)
+            df = add_cross_asset_features(df, btc_df)
         return get_trading_decision(symbol, df)
     except Exception as e:
         return {"action": "HOLD", "explanation": f"Unavailable: {e}"}
@@ -79,35 +79,35 @@ def get_rl_decision(symbol):
 def get_prediction(symbol: str) -> dict:
     """Fetch live data, run model, return everything the dashboard needs."""
     raw = fetch_live_data(symbol, days=90)
-    df  = add_features(raw)
+    df = add_features(raw)
     model, scaler = load_model(symbol)
 
     last_close = float(df["Close"].iloc[-1])
     next_price = predict(model, df, scaler)
     change_pct = (next_price - last_close) / last_close * 100
 
-    rsi       = float(df["RSI"].iloc[-1])
-    macd      = float(df["MACD"].iloc[-1])
-    macd_sig  = float(df["MACD_Signal"].iloc[-1])
-    bb_pct    = float(df["BB_Pct"].iloc[-1])
-    ret_1d    = float(df["Return_1d"].iloc[-1]) * 100
-    ret_7d    = float(df["Return_7d"].iloc[-1]) * 100
+    rsi = float(df["RSI"].iloc[-1])
+    macd = float(df["MACD"].iloc[-1])
+    macd_sig = float(df["MACD_Signal"].iloc[-1])
+    bb_pct = float(df["BB_Pct"].iloc[-1])
+    ret_1d = float(df["Return_1d"].iloc[-1]) * 100
+    ret_7d = float(df["Return_7d"].iloc[-1]) * 100
     vol_ratio = float(df["Volume_Ratio"].iloc[-1])
 
     return {
-        "df":          df,
-        "last_close":  last_close,
-        "predicted":   next_price,
-        "change_pct":  change_pct,
-        "direction":   "UP" if change_pct > 0 else "DOWN",
-        "rsi":         rsi,
-        "macd":        macd,
-        "macd_sig":    macd_sig,
-        "bb_pct":      bb_pct,
-        "ret_1d":      ret_1d,
-        "ret_7d":      ret_7d,
-        "vol_ratio":   vol_ratio,
-        "last_date":   df.index[-1].strftime("%d %B %Y"),
+        "df": df,
+        "last_close": last_close,
+        "predicted": next_price,
+        "change_pct": change_pct,
+        "direction": "UP" if change_pct > 0 else "DOWN",
+        "rsi": rsi,
+        "macd": macd,
+        "macd_sig": macd_sig,
+        "bb_pct": bb_pct,
+        "ret_1d": ret_1d,
+        "ret_7d": ret_7d,
+        "vol_ratio": vol_ratio,
+        "last_date": df.index[-1].strftime("%d %B %Y"),
     }
 
 
@@ -119,21 +119,15 @@ st.set_page_config(
     layout="wide",
 )
 
-# BRANDING - Coin Compass logo. st.logo() places the wordmark at the top of
-# the sidebar (and swaps to the small icon-only mark when the sidebar is
-# collapsed); both files need to sit next to dashboard.py when the app runs.
-# Requires Streamlit 1.29 or newer - upgrade with `pip install --upgrade
-# streamlit` if this line errors on an older install.
+# BRANDING - st.logo() shows the wordmark in the sidebar (small icon when
+# collapsed). needs Streamlit 1.29+, and both logo files next to this script
 st.logo("coin_compass_logo_no_tagline.png", icon_image="coin_compass_icon.png")
 
 USE_TEST_DATA = os.environ.get("USE_TEST_DATA", "false").lower() in {"1", "true", "yes", "on"}
 
 
-# CUSTOM STYLING - a single neutral theme shared by all three display
-# modes. White cards on a light slate background, thin borders instead of
-# solid colour fills, a coloured left accent bar for status, Inter for
-# text and JetBrains Mono for numbers. "Advanced" adds more content, not a
-# different look.
+# CUSTOM STYLING - one theme shared by all 3 display modes. white cards,
+# light background, Inter font for text, JetBrains Mono for numbers
 
 st.markdown("""
 <style>
@@ -378,10 +372,8 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 
-# CONSENT GATE - nothing else on the page (including the sidebar) renders
-# until the user explicitly agrees to this disclaimer. Agreement is
-# remembered for the rest of this browser session via st.session_state, so
-# it's only shown once per session, not on every rerun.
+# CONSENT GATE - page doesn't render until user agrees to the disclaimer.
+# remembered in session_state so it only shows once per session
 
 if "agreed_to_disclaimer" not in st.session_state:
     st.session_state.agreed_to_disclaimer = False
@@ -415,10 +407,8 @@ if not st.session_state.agreed_to_disclaimer:
     st.stop()
 
 
-# APP HEADER - "Coin Compass" branding plus a one-line welcome for anyone
-# non-technical, and a dismissible 3-step explainer for first-time
-# visitors. Shown once per session; the dismissal is remembered in
-# st.session_state the same way the disclaimer agreement is.
+# APP HEADER - logo + welcome text, plus a dismissible how-to-use box for
+# first time visitors. same session_state trick as the disclaimer above
 
 hero_col1, hero_col2, hero_col3 = st.columns([1, 2, 1])
 with hero_col2:
@@ -450,18 +440,17 @@ if not st.session_state.dismissed_welcome:
 st.markdown("---")
 
 
-# PORTFOLIO SIMULATOR STATE - paper trading only, no real money involved.
-# Lives in st.session_state so it persists across reruns within a browser
-# session, and resets when the session ends or the user clicks Reset.
+# PORTFOLIO SIMULATOR STATE - paper trading only, no real money. lives in
+# session_state so it survives reruns, resets on Reset or new session
 
 STARTING_BALANCE = 10_000.0
 
 if "portfolio_cash" not in st.session_state:
     st.session_state.portfolio_cash = STARTING_BALANCE
 if "portfolio_positions" not in st.session_state:
-    st.session_state.portfolio_positions = {}   # {ticker: {"qty": float, "avg_price": float}}
+    st.session_state.portfolio_positions = {}  # {ticker: {"qty": float, "avg_price": float}}
 if "portfolio_trade_log" not in st.session_state:
-    st.session_state.portfolio_trade_log = []   # list of trade record dicts
+    st.session_state.portfolio_trade_log = []  # list of trade record dicts
 
 
 # HELPER FUNCTIONS
@@ -576,12 +565,12 @@ def execute_buy(ticker: str, usd_amount: float, price: float) -> tuple[bool, str
     st.session_state.portfolio_positions[ticker] = {"qty": new_qty, "avg_price": new_avg_price}
     st.session_state.portfolio_cash -= usd_amount
     st.session_state.portfolio_trade_log.append({
-        "Time":   datetime.now().strftime("%H:%M:%S"),
-        "Coin":   ticker,
+        "Time": datetime.now().strftime("%H:%M:%S"),
+        "Coin": ticker,
         "Action": "BUY",
-        "USD":    round(usd_amount, 2),
-        "Price":  round(price, 2),
-        "Qty":    round(qty, 6),
+        "USD": round(usd_amount, 2),
+        "Price": round(price, 2),
+        "Qty": round(qty, 6),
         "Cash after": round(st.session_state.portfolio_cash, 2),
     })
     return True, ""
@@ -611,12 +600,12 @@ def execute_sell(ticker: str, qty_to_sell: float, price: float) -> tuple[bool, s
         }
 
     st.session_state.portfolio_trade_log.append({
-        "Time":   datetime.now().strftime("%H:%M:%S"),
-        "Coin":   ticker,
+        "Time": datetime.now().strftime("%H:%M:%S"),
+        "Coin": ticker,
         "Action": "SELL",
-        "USD":    round(proceeds, 2),
-        "Price":  round(price, 2),
-        "Qty":    round(qty_to_sell, 6),
+        "USD": round(proceeds, 2),
+        "Price": round(price, 2),
+        "Qty": round(qty_to_sell, 6),
         "Cash after": round(st.session_state.portfolio_cash, 2),
     })
     return True, ""
@@ -647,32 +636,27 @@ def get_portfolio_total_value() -> float:
 
 # SIDEBAR
 
-# Final trained coin list - matches exactly what crypto_model.py/rl_agent.py
-# have actually been trained on. Started from the top 15 by market cap
-# (stablecoins excluded), then UNI-USD and DOT-USD were dropped after real
-# training runs showed they don't work reliably here: UNI's live data fetch
-# failed even though its training fetch succeeded, and DOT's LSTM prediction
-# extrapolated wildly (+174% in a day) outside its training range.
+# final coin list - matches what crypto_model.py/rl_agent.py were actually
+# trained on. dropped UNI (live data fetch kept failing) and DOT (LSTM
+# prediction went wild, +174% in a day) after testing
 COINS = {
-    "Bitcoin (BTC)":       "BTC-USD",
-    "Ethereum (ETH)":      "ETH-USD",
-    "BNB (BNB)":           "BNB-USD",
-    "XRP (XRP)":           "XRP-USD",
-    "Solana (SOL)":        "SOL-USD",
-    "Cardano (ADA)":       "ADA-USD",
-    "Dogecoin (DOGE)":     "DOGE-USD",
-    "TRON (TRX)":          "TRX-USD",
-    "Chainlink (LINK)":    "LINK-USD",
-    "Avalanche (AVAX)":    "AVAX-USD",
-    "Stellar (XLM)":       "XLM-USD",
-    "Litecoin (LTC)":      "LTC-USD",
-    "Bitcoin Cash (BCH)":  "BCH-USD",
+    "Bitcoin (BTC)": "BTC-USD",
+    "Ethereum (ETH)": "ETH-USD",
+    "BNB (BNB)": "BNB-USD",
+    "XRP (XRP)": "XRP-USD",
+    "Solana (SOL)": "SOL-USD",
+    "Cardano (ADA)": "ADA-USD",
+    "Dogecoin (DOGE)": "DOGE-USD",
+    "TRON (TRX)": "TRX-USD",
+    "Chainlink (LINK)": "LINK-USD",
+    "Avalanche (AVAX)": "AVAX-USD",
+    "Stellar (XLM)": "XLM-USD",
+    "Litecoin (LTC)": "LTC-USD",
+    "Bitcoin Cash (BCH)": "BCH-USD",
 }
 
-# Launch year + category for each coin, keyed by ticker. Launch year is the
-# project's founding/ICO year (the convention most public listings use) -
-# for TRON and Chainlink specifically, mainnet went live a little later
-# (2018 and 2019 respectively) than the founding year shown here.
+# launch year + category per coin. year = founding/ICO year, not mainnet
+# launch (TRON and Chainlink's mainnets came a bit later than this)
 COIN_INFO = {
     "BTC-USD": {"launch_year": 2009, "category": "Digital currency"},
     "ETH-USD": {"launch_year": 2015, "category": "Smart contract platform"},
@@ -690,11 +674,8 @@ COIN_INFO = {
 }
 
 with st.sidebar:
-    # Sidebar holds controls only - coin, display mode, refresh. Everything
-    # explanatory (coin-list methodology, what each mode shows, how to use
-    # the tool, refresh cadence) lives in the "About this tool" expander
-    # at the bottom instead of a caption under every widget, so the panel
-    # reads as a control surface rather than a running tutorial.
+    # sidebar = controls only (coin, mode, refresh). all the explanation
+    # lives in the "About this tool" expander at the bottom instead
     st.caption("Powered by a trained AI prediction model")
     st.markdown("---")
 
@@ -710,7 +691,7 @@ with st.sidebar:
         index=1,
         horizontal=True,
     )
-    IS_BASIC    = display_mode == "Basic"
+    IS_BASIC = display_mode == "Basic"
     IS_ADVANCED = display_mode == "Advanced"
 
     if st.button("Refresh data", width="stretch"):
@@ -719,12 +700,8 @@ with st.sidebar:
 
     st.markdown("---")
     with st.expander("About this tool"):
-        # Copy here matches the same plain-English vs technical split used
-        # on the main page (Simple mode explains indicators in plain terms,
-        # Advanced mode names the real objects - state vector, Q-values,
-        # confidence gate). Basic and Simple share the plain-English set
-        # since Basic is meant to be the least jargon-heavy view of all;
-        # Advanced gets the fuller, technically accurate explanation.
+        # same plain-English vs technical split as the main page - Basic/
+        # Simple use plain terms, Advanced names the real objects
         if IS_ADVANCED:
             st.markdown("**How the system works**")
             st.caption(
@@ -874,9 +851,8 @@ if info:
 st.markdown("---")
 
 
-# ROW 1: CURRENT PRICE + PREDICTION - Basic mode skips this whole row apart
-# from a single current-price tile; Simple and Advanced get the full
-# three-column layout.
+# ROW 1: CURRENT PRICE + PREDICTION - Basic just shows one price tile,
+# Simple/Advanced get the full 3-column layout
 
 if IS_BASIC:
     st.markdown("### Current Price")
@@ -895,10 +871,10 @@ else:
     with col_pred:
         st.markdown("### Tomorrow's Prediction")
         direction = data["direction"]
-        change    = data["change_pct"]
-        price     = data["predicted"]
-        status    = "positive" if direction == "UP" else "negative"
-        arrow     = "▲" if direction == "UP" else "▼"
+        change = data["change_pct"]
+        price = data["predicted"]
+        status = "positive" if direction == "UP" else "negative"
+        arrow = "▲" if direction == "UP" else "▼"
 
         render_metric_card(
             "Predicted Price", f"${price:,.2f}", status,
@@ -933,14 +909,14 @@ if not IS_BASIC:
 with st.spinner("Getting AI recommendation..."):
     decision = get_rl_decision(coin)
 
-action        = decision["action"]
-q_values      = decision.get("q_values")       # only present if rl_agent.py's q_values patch is applied
-raw_action    = decision.get("raw_action")      # only present if the confidence gate downgraded this call
-beat_hold     = decision.get("beat_buy_hold")   # only present if apply_confidence_gate() ran
+action = decision["action"]
+q_values = decision.get("q_values")  # only present if rl_agent.py's q_values patch is applied
+raw_action = decision.get("raw_action")  # only present if the confidence gate downgraded this call
+beat_hold = decision.get("beat_buy_hold")  # only present if apply_confidence_gate() ran
 is_profitable = decision.get("is_profitable")
-test_return   = decision.get("test_return")
+test_return = decision.get("test_return")
 test_buy_hold = decision.get("test_buy_hold")
-rec_css  = {"BUY": "buy", "HOLD": "hold", "SELL": "sell"}[action]
+rec_css = {"BUY": "buy", "HOLD": "hold", "SELL": "sell"}[action]
 
 st.markdown(
     f'<div class="recommendation-card {rec_css}">'
@@ -950,10 +926,8 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# Shown in Simple and Advanced, plain English: if the confidence gate
-# downgraded this call, say so right under the recommendation. Left out of
-# Basic mode on purpose - Basic is meant to be just the badge and its
-# one-line reason, nothing more.
+# shown in Simple/Advanced only - says if the confidence gate downgraded
+# this call. left out of Basic on purpose, that mode stays minimal
 if not IS_BASIC and raw_action and raw_action != action:
     st.caption(
         f"The model's initial signal was **{raw_action}**, but it was "
@@ -964,9 +938,8 @@ if not IS_BASIC and raw_action and raw_action != action:
 st.markdown("---")
 
 
-# PORTFOLIO SIMULATOR - paper trading with a virtual balance, so the user
-# can act on (or ignore) the AI's recommendation and see the consequence
-# rather than just reading it. No real money is involved anywhere here.
+# PORTFOLIO SIMULATOR - paper trading with virtual cash so the user can
+# act on the recommendation and see what happens. no real money involved
 
 if not IS_BASIC:
     st.markdown("### Your Portfolio")
@@ -976,16 +949,16 @@ if not IS_BASIC:
         "recommendation would play out."
     )
 
-    current_price   = data["last_close"]
-    position        = st.session_state.portfolio_positions.get(coin)
-    position_qty    = position["qty"] if position else 0.0
-    position_value  = position_qty * current_price
-    position_pnl    = (
+    current_price = data["last_close"]
+    position = st.session_state.portfolio_positions.get(coin)
+    position_qty = position["qty"] if position else 0.0
+    position_value = position_qty * current_price
+    position_pnl = (
         (current_price - position["avg_price"]) / position["avg_price"] * 100
         if position and position["avg_price"] > 0 else 0.0
     )
-    total_value     = get_portfolio_total_value()
-    overall_return  = (total_value - STARTING_BALANCE) / STARTING_BALANCE * 100
+    total_value = get_portfolio_total_value()
+    overall_return = (total_value - STARTING_BALANCE) / STARTING_BALANCE * 100
 
     pf_col1, pf_col2, pf_col3 = st.columns(3)
     with pf_col1:
@@ -1035,9 +1008,7 @@ if not IS_BASIC:
         else:
             st.error(err)
 
-    # Sell row - mirrors the buy row above exactly: type a USD amount,
-    # click Sell. Disabled (like Buy is when cash is too low) when there
-    # is no position to sell.
+    # sell row - same pattern as buy row above, disabled if no position held
     sell_col1, sell_col2 = st.columns([2, 1])
     with sell_col1:
         max_sellable = max(position_value, 10.0)
@@ -1063,9 +1034,7 @@ if not IS_BASIC:
         else:
             st.error(err)
 
-    # Point out when the user's own position disagrees with the AI's
-    # current live recommendation, rather than just repeating the
-    # recommendation shown above.
+    # flag when the user's own position disagrees with the current AI call
     if position and action == "SELL":
         st.caption(
             f"Note: you are holding {coin_label}, but the AI's current "
@@ -1091,9 +1060,8 @@ if not IS_BASIC:
     st.markdown("---")
 
 
-# ADVANCED: MODEL INTERNALS - same look as the rest of the page, more
-# technical terminology, each term explained plainly next to it, plus two
-# real charts (Q-network output, and MACD/Bollinger history further down).
+# ADVANCED: MODEL INTERNALS - more technical terms (explained next to each
+# one), plus real charts for Q-network output and indicator history
 
 if IS_ADVANCED:
     st.markdown("### Model Internals")
@@ -1220,9 +1188,8 @@ if IS_ADVANCED:
     st.markdown("---")
 
 
-# ROW 3: CHART + INDICATORS, INDICATOR EXPLAINER, RSI HISTORY, and the
-# Advanced-only extra history charts - all skipped entirely in Basic mode,
-# which stops right after the recommendation box above.
+# ROW 3: CHART + INDICATORS, INDICATOR EXPLAINER, RSI HISTORY, plus the
+# Advanced-only charts - all skipped in Basic mode
 
 if not IS_BASIC:
     col_chart, col_indicators = st.columns([2, 1])
@@ -1308,9 +1275,8 @@ if not IS_BASIC:
         )
 
 
-    # ADVANCED: MORE HISTORY CHARTS - same expander pattern as RSI above, just
-    # for the other two indicators, only shown in Advanced mode to keep Simple
-    # mode exactly as it was.
+    # ADVANCED: MORE HISTORY CHARTS - same pattern as RSI above, other 2
+    # indicators, Advanced mode only
 
     if IS_ADVANCED:
         with st.expander("Show MACD history (last 90 days)"):
@@ -1332,11 +1298,8 @@ if not IS_BASIC:
             )
 
 
-# MARKET INSIGHTS - exploratory analysis on the market data itself, plus a
-# cross-coin comparison. Separate from the recommendation content above:
-# this section is about the data and the model's own track record, not
-# about telling the user what to do. Skipped in Basic mode like the other
-# non-essential sections.
+# MARKET INSIGHTS - exploratory analysis + cross-coin comparison, about
+# the data/model's track record rather than what to do. skipped in Basic
 
 if not IS_BASIC:
     st.markdown("---")

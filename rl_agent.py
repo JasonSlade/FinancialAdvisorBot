@@ -78,24 +78,24 @@ class CryptoTradingEnv:
             initial_balance:     Starting portfolio value in USD
             transaction_cost:    Fee per trade (0.001 = 0.1%)
         """
-        self.df                = df
-        self.lstm_predictions  = lstm_predictions
-        self.lstm_directions   = lstm_directions
-        self.initial_balance   = initial_balance
-        self.transaction_cost  = transaction_cost
-        self.n_steps           = len(df)
-        self.state_size        = 9
-        self.action_size       = 3    # 0=SELL, 1=HOLD, 2=BUY
+        self.df = df
+        self.lstm_predictions = lstm_predictions
+        self.lstm_directions = lstm_directions
+        self.initial_balance = initial_balance
+        self.transaction_cost = transaction_cost
+        self.n_steps = len(df)
+        self.state_size = 9
+        self.action_size = 3  # 0=SELL, 1=HOLD, 2=BUY
 
         self.reset()
 
     def reset(self) -> np.ndarray:
         """Reset environment to start of episode. Returns initial state."""
-        self.current_step    = 1      # start at 1 so we can look back
-        self.balance         = self.initial_balance
-        self.position        = 0      # 0 = not holding, 1 = holding
-        self.entry_price     = 0.0    # price we bought at
-        self.total_trades    = 0
+        self.current_step = 1  # start at 1 so we can look back
+        self.balance = self.initial_balance
+        self.position = 0  # 0 = not holding, 1 = holding
+        self.entry_price = 0.0  # price we bought at
+        self.total_trades = 0
         self.profitable_trades = 0
         return self._get_state()
 
@@ -107,28 +107,23 @@ class CryptoTradingEnv:
         """
         i = self.current_step
 
-        # Predicted next-day % change from the LSTM's price head. This used
-        # to come from the direction head's P(up) instead, but
-        # crypto_model.py's decoupled early-stopping run confirmed the
-        # direction head isn't learning a real signal at this horizon - it
-        # collapses to predicting a constant class regardless of input - so
-        # it's no longer trusted to drive the agent's decisions. P(up) is
-        # still surfaced to the user as an informational number (see
-        # get_trading_decision), just not fed into the state the policy is
-        # trained on.
-        current_price   = float(self.df["Close"].iloc[i])
+        # predicted next-day % change from the LSTM price head. used to use
+        # the direction head's P(up) here but it wasn't learning a real
+        # signal, just predicting the same class every time. still shown to
+        # the user in get_trading_decision, just not used in the state here
+        current_price = float(self.df["Close"].iloc[i])
         predicted_price = float(self.lstm_predictions[i])
-        pred_change     = (predicted_price - current_price) / current_price
+        pred_change = (predicted_price - current_price) / current_price
 
         # Technical indicators (normalised to roughly 0-1 range)
-        rsi        = float(self.df["RSI"].iloc[i]) / 100.0
-        macd       = float(self.df["MACD"].iloc[i])
-        macd_sig   = float(self.df["MACD_Signal"].iloc[i])
-        macd_norm  = np.tanh(macd - macd_sig)          # tanh squishes to -1 to 1
-        bb_pct     = float(self.df["BB_Pct"].iloc[i])
-        ret_1d     = float(self.df["Return_1d"].iloc[i])
-        ret_7d     = float(self.df["Return_7d"].iloc[i])
-        vol_ratio  = np.tanh(float(self.df["Volume_Ratio"].iloc[i]) - 1.0)
+        rsi = float(self.df["RSI"].iloc[i]) / 100.0
+        macd = float(self.df["MACD"].iloc[i])
+        macd_sig = float(self.df["MACD_Signal"].iloc[i])
+        macd_norm = np.tanh(macd - macd_sig)  # tanh squishes to -1 to 1
+        bb_pct = float(self.df["BB_Pct"].iloc[i])
+        ret_1d = float(self.df["Return_1d"].iloc[i])
+        ret_7d = float(self.df["Return_7d"].iloc[i])
+        vol_ratio = np.tanh(float(self.df["Volume_Ratio"].iloc[i]) - 1.0)
 
         # Portfolio status
         position = float(self.position)
@@ -138,14 +133,14 @@ class CryptoTradingEnv:
             unrealised_pnl = 0.0
 
         state = np.array([
-            pred_change,     # LSTM predicted next-day % price change
-            rsi,             # momentum indicator
-            macd_norm,       # trend crossover signal
-            bb_pct,          # price position in volatility range
-            ret_1d,          # recent 1-day momentum
-            ret_7d,          # recent 7-day momentum
-            vol_ratio,       # unusual volume signal
-            position,        # are we currently holding?
+            pred_change,  # LSTM predicted next-day % price change
+            rsi,  # momentum indicator
+            macd_norm,  # trend crossover signal
+            bb_pct,  # price position in volatility range
+            ret_1d,  # recent 1-day momentum
+            ret_7d,  # recent 7-day momentum
+            vol_ratio,  # unusual volume signal
+            position,  # are we currently holding?
             unrealised_pnl,  # current open profit/loss
         ], dtype=np.float32)
 
@@ -164,49 +159,47 @@ class CryptoTradingEnv:
             done:       True if episode is over
         """
         current_price = float(self.df["Close"].iloc[self.current_step])
-        reward        = 0.0
+        reward = 0.0
 
-        # Next-step price move - used to reward/penalise decisions made while
-        # holding (HOLD) and decisions made while flat (SELL/HOLD as "stay out")
-        next_price   = float(self.df["Close"].iloc[
+        # next price move - used to reward/penalise HOLD and staying flat
+        next_price = float(self.df["Close"].iloc[
             min(self.current_step + 1, self.n_steps - 1)
         ])
         price_change = (next_price - current_price) / current_price
 
         # BUY
-        if action == 2:   # BUY
+        if action == 2:  # BUY
             if self.position == 0:
                 # Enter a position - pay transaction cost
-                self.position    = 1
+                self.position = 1
                 self.entry_price = current_price * (1 + self.transaction_cost)
-                reward = -self.transaction_cost   # small penalty for trading cost
+                reward = -self.transaction_cost  # small penalty for trading cost
 
         # SELL
-        elif action == 0:   # SELL
+        elif action == 0:  # SELL
             if self.position == 1:
                 # Exit position - receive profit or loss minus transaction cost
                 exit_price = current_price * (1 - self.transaction_cost)
-                pnl        = (exit_price - self.entry_price) / self.entry_price
-                reward     = pnl
-                self.balance  = self.balance * (1 + pnl)
+                pnl = (exit_price - self.entry_price) / self.entry_price
+                reward = pnl
+                self.balance = self.balance * (1 + pnl)
                 self.position = 0
 
                 if pnl > 0:
                     self.profitable_trades += 1
                 self.total_trades += 1
             else:
-                # Already flat - reward for correctly staying out ahead of a
-                # falling price, penalise for staying out ahead of a rising one
-                reward = -price_change * 0.5   # opportunity cost of staying flat
+                # already flat - reward for avoiding a drop, penalise for missing a rise
+                reward = -price_change * 0.5  # opportunity cost of staying flat
 
         # HOLD
-        else:   # HOLD
+        else:  # HOLD
             if self.position == 1:
                 # Reward for holding a winning position, penalise holding a loser
-                reward = price_change * 0.5   # partial reward for unrealised gains
+                reward = price_change * 0.5  # partial reward for unrealised gains
             else:
-                # Not holding - same opportunity-cost signal as staying out via SELL
-                reward = -price_change * 0.5   # opportunity cost of staying flat
+                # not holding - same opportunity cost logic as SELL above
+                reward = -price_change * 0.5  # opportunity cost of staying flat
 
         # Move to next timestep
         self.current_step += 1
@@ -215,9 +208,9 @@ class CryptoTradingEnv:
         # Force close any open position at end of episode
         if done and self.position == 1:
             final_price = float(self.df["Close"].iloc[-1])
-            exit_price  = final_price * (1 - self.transaction_cost)
-            pnl         = (exit_price - self.entry_price) / self.entry_price
-            reward      += pnl
+            exit_price = final_price * (1 - self.transaction_cost)
+            pnl = (exit_price - self.entry_price) / self.entry_price
+            reward += pnl
             self.balance = self.balance * (1 + pnl)
             self.position = 0
 
@@ -231,14 +224,14 @@ class CryptoTradingEnv:
     def get_performance(self) -> dict:
         """Return portfolio performance metrics."""
         total_return = (self.balance - self.initial_balance) / self.initial_balance * 100
-        win_rate     = (self.profitable_trades / self.total_trades * 100
+        win_rate = (self.profitable_trades / self.total_trades * 100
                         if self.total_trades > 0 else 0)
         return {
-            "final_balance":     round(self.balance, 2),
-            "total_return_%":    round(total_return, 2),
-            "total_trades":      self.total_trades,
+            "final_balance": round(self.balance, 2),
+            "total_return_%": round(total_return, 2),
+            "total_trades": self.total_trades,
             "profitable_trades": self.profitable_trades,
-            "win_rate_%":        round(win_rate, 2),
+            "win_rate_%": round(win_rate, 2),
         }
 
 
@@ -310,19 +303,19 @@ class DQNAgent:
             batch_size:     number of experiences to train on per step
             memory_size:    maximum experiences to store in replay buffer
         """
-        self.state_size    = state_size
-        self.action_size   = action_size
-        self.gamma         = gamma
-        self.epsilon       = epsilon
-        self.epsilon_min   = epsilon_min
+        self.state_size = state_size
+        self.action_size = action_size
+        self.gamma = gamma
+        self.epsilon = epsilon
+        self.epsilon_min = epsilon_min
         self.epsilon_decay = epsilon_decay
-        self.batch_size    = batch_size
+        self.batch_size = batch_size
 
         # Replay memory - stores past experiences
         self.memory = deque(maxlen=memory_size)
 
         # Main network - updated every step
-        self.model  = DQNetwork(state_size, action_size)
+        self.model = DQNetwork(state_size, action_size)
 
         # Target network - updated every 10 episodes for stability
         self.target_model = DQNetwork(state_size, action_size)
@@ -343,12 +336,12 @@ class DQNAgent:
         Otherwise: exploit (best known action from Q-network)
         """
         if random.random() < self.epsilon:
-            return random.randrange(self.action_size)   # explore
+            return random.randrange(self.action_size)  # explore
 
         state_tensor = torch.tensor(state, dtype=torch.float32).unsqueeze(0)
         with torch.no_grad():
             q_values = self.model(state_tensor)
-        return int(q_values.argmax().item())             # exploit
+        return int(q_values.argmax().item())  # exploit
 
     def replay(self):
         """
@@ -356,15 +349,15 @@ class DQNAgent:
         This is the core learning step of DQN.
         """
         if len(self.memory) < self.batch_size:
-            return   # not enough experiences yet
+            return  # not enough experiences yet
 
         # Sample random batch from memory
         batch = random.sample(self.memory, self.batch_size)
-        states      = torch.tensor([e[0] for e in batch], dtype=torch.float32)
-        actions     = torch.tensor([e[1] for e in batch], dtype=torch.long)
-        rewards     = torch.tensor([e[2] for e in batch], dtype=torch.float32)
+        states = torch.tensor([e[0] for e in batch], dtype=torch.float32)
+        actions = torch.tensor([e[1] for e in batch], dtype=torch.long)
+        rewards = torch.tensor([e[2] for e in batch], dtype=torch.float32)
         next_states = torch.tensor([e[3] for e in batch], dtype=torch.float32)
-        dones       = torch.tensor([e[4] for e in batch], dtype=torch.float32)
+        dones = torch.tensor([e[4] for e in batch], dtype=torch.float32)
 
         # Current Q-values from main network
         current_q = self.model(states).gather(1, actions.unsqueeze(1)).squeeze(1)
@@ -372,7 +365,7 @@ class DQNAgent:
         # Target Q-values from target network (Bellman equation)
         # Q(s,a) = reward + gamma * max(Q(s', a')) if not done
         with torch.no_grad():
-            next_q  = self.target_model(next_states).max(1)[0]
+            next_q = self.target_model(next_states).max(1)[0]
             target_q = rewards + self.gamma * next_q * (1 - dones)
 
         # Update main network
@@ -402,7 +395,7 @@ class DQNAgent:
             torch.load(f"{tag}_rl_model.pt", map_location="cpu", weights_only=True)
         )
         self.model.eval()
-        self.epsilon = 0.0   # no exploration during inference
+        self.epsilon = 0.0  # no exploration during inference
 
 
 #4. GENERATE LSTM PREDICTIONS FOR RL TRAINING
@@ -431,12 +424,11 @@ def generate_lstm_predictions(df: pd.DataFrame, symbol: str) -> tuple[np.ndarray
         feature_cols = FEATURE_COLUMNS
 
     n_features = len(feature_cols)
-    close_idx  = feature_cols.index("Close")
-    lookback   = 30 if symbol == "BTC-USD" else 45
+    close_idx = feature_cols.index("Close")
+    lookback = 30 if symbol == "BTC-USD" else 45
 
-    # Load model weights
-    # Load model weights - must use n_features from the saved features file
-    # not from the DataFrame, since they may differ
+    # load model weights - n_features must come from the saved features
+    # file, not the DataFrame, since they can differ
     from crypto_model import CryptoLSTM
     state_dict = torch.load(f"{tag}_model.pt", map_location="cpu", weights_only=True)
 
@@ -461,7 +453,7 @@ def generate_lstm_predictions(df: pd.DataFrame, symbol: str) -> tuple[np.ndarray
             pass
         close_idx = feature_cols.index("Close")
 
-    # Load scaler - was fitted on exactly n_features columns
+    # load scaler - fitted on exactly n_features columns
     with open(f"{tag}_scaler.pkl", "rb") as f:
         scaler = pickle.load(f)
 
@@ -472,8 +464,8 @@ def generate_lstm_predictions(df: pd.DataFrame, symbol: str) -> tuple[np.ndarray
         print(f"  WARNING: missing columns {missing}, using base features only")
         from predict import FEATURE_COLUMNS
         feature_cols = FEATURE_COLUMNS
-        n_features   = len(feature_cols)
-        close_idx    = feature_cols.index("Close")
+        n_features = len(feature_cols)
+        close_idx = feature_cols.index("Close")
         model = CryptoLSTM(n_features=n_features)
         model.load_state_dict(
             torch.load(f"{tag}_model.pt", map_location="cpu", weights_only=True)
@@ -481,34 +473,32 @@ def generate_lstm_predictions(df: pd.DataFrame, symbol: str) -> tuple[np.ndarray
         with open(f"{tag}_scaler.pkl", "rb") as f:
             scaler = pickle.load(f)
 
-    data   = df[feature_cols].values
+    data = df[feature_cols].values
     scaled = scaler.transform(data)
 
     predictions = np.zeros(len(df))
-    directions  = np.full(len(df), 0.5)   # neutral default where no window exists yet
+    directions = np.full(len(df), 0.5)  # neutral default where no window exists yet
 
     for i in range(lookback, len(df)):
         window = scaled[i - lookback:i].astype(np.float32)
-        X      = torch.tensor(window).unsqueeze(0)
+        X = torch.tensor(window).unsqueeze(0)
         with torch.no_grad():
-            pred_scaled     = model(X).item()
+            pred_scaled = model(X).item()
             direction_logit = model.forward_direction(X).item()
 
         dummy = np.zeros((1, n_features))
         dummy[0, close_idx] = pred_scaled
         predictions[i] = float(scaler.inverse_transform(dummy)[0, close_idx])
-        directions[i]  = float(torch.sigmoid(torch.tensor(direction_logit)))
+        directions[i] = float(torch.sigmoid(torch.tensor(direction_logit)))
 
     predictions[:lookback] = df["Close"].values[:lookback]
     return predictions, directions
 
 def buy_and_hold_return(df: pd.DataFrame, transaction_cost: float = 0.001) -> float:
     """
-    Return % from simply buying at the start of `df` and holding to the end -
-    the passive baseline any active strategy needs to beat. Crypto trends
-    hard in both directions, so a large positive or negative RL return can
-    just be market beta (the agent stayed mostly long/flat through a big
-    move) rather than genuine skill. Comparing against this tells us which.
+    % return from just buying at the start and holding to the end - the
+    baseline the RL agent needs to beat, since crypto can trend hard either
+    way and a big return could just be market movement, not real skill.
     """
     entry = float(df["Close"].iloc[0]) * (1 + transaction_cost)
     exit_ = float(df["Close"].iloc[-1]) * (1 - transaction_cost)
@@ -549,20 +539,20 @@ def train_agent(symbol: str, df: pd.DataFrame,
         Trained DQNAgent, the held-out test DataFrame, the best validation
         return, and the validation period's buy & hold return (baseline)
     """
-    # Split data into train and test portions
+    # split into train and test portions
     split_idx = int(len(df) * train_ratio)
-    train_df  = df.iloc[:split_idx].reset_index(drop=True)
-    test_df   = df.iloc[split_idx:].reset_index(drop=True)
+    train_df = df.iloc[:split_idx].reset_index(drop=True)
+    test_df = df.iloc[split_idx:].reset_index(drop=True)
 
     print(f"  Training period: {df.index[0].date()} -> {df.index[split_idx].date()}")
     print(f"  Test period:     {df.index[split_idx].date()} -> {df.index[-1].date()}")
     print(f"  Train rows: {len(train_df)}  |  Test rows: {len(test_df)}")
 
-    # Further split the training portion into an inner-train / validation split.
-    # Checkpoints are scored on the validation subset, never on data trained on.
-    val_split_idx  = int(len(train_df) * (1 - val_ratio))
+    # split training portion again into inner-train / validation, so
+    # checkpoints are scored on data the model didn't train on
+    val_split_idx = int(len(train_df) * (1 - val_ratio))
     inner_train_df = train_df.iloc[:val_split_idx].reset_index(drop=True)
-    val_df         = train_df.iloc[val_split_idx:].reset_index(drop=True)
+    val_df = train_df.iloc[val_split_idx:].reset_index(drop=True)
 
     print(f"  Inner-train rows: {len(inner_train_df)}  |  Validation rows: {len(val_df)}")
     val_buy_hold = buy_and_hold_return(val_df)
@@ -570,27 +560,27 @@ def train_agent(symbol: str, df: pd.DataFrame,
           f"(passive baseline for the validation window)")
 
     print(f"\n  Generating LSTM predictions for {symbol}...")
-    lstm_preds,     lstm_dirs     = generate_lstm_predictions(inner_train_df, symbol)
+    lstm_preds, lstm_dirs = generate_lstm_predictions(inner_train_df, symbol)
     lstm_preds_val, lstm_dirs_val = generate_lstm_predictions(val_df, symbol)
 
-    env     = CryptoTradingEnv(inner_train_df, lstm_preds, lstm_dirs)
+    env = CryptoTradingEnv(inner_train_df, lstm_preds, lstm_dirs)
     env_val = CryptoTradingEnv(val_df, lstm_preds_val, lstm_dirs_val)
-    agent   = DQNAgent(state_size=env.state_size, action_size=env.action_size)
+    agent = DQNAgent(state_size=env.state_size, action_size=env.action_size)
 
     print(f"  Training DQN agent for {symbol} over {episodes} episodes...")
     print(f"  {'Episode':<10} {'Train %':<12} {'Val %':<12} {'Trades':<10} {'Win rate':<12} {'Epsilon'}")
     print(f"  {'─'*68}")
 
     best_val_return = float("-inf")
-    best_state      = None
+    best_state = None
 
     for episode in range(1, episodes + 1):
         state = env.reset()
-        done  = False
+        done = False
         action_counts = {0: 0, 1: 0, 2: 0}
 
         while not done:
-            action              = agent.act(state)
+            action = agent.act(state)
             next_state, reward, done = env.step(action)
             agent.remember(state, action, reward, next_state, done)
             agent.replay()
@@ -603,19 +593,18 @@ def train_agent(symbol: str, df: pd.DataFrame,
 
         perf = env.get_performance()
 
-        # Score this episode's checkpoint on the held-out validation subset,
-        # not on the training data it just learned from
+        # score this checkpoint on held-out validation data, not training data
         train_epsilon = agent.epsilon
-        agent.epsilon = 0.0   # pure exploitation for validation scoring
+        agent.epsilon = 0.0  # pure exploitation for validation scoring
 
         val_state = env_val.reset()
-        val_done  = False
+        val_done = False
         while not val_done:
             val_action = agent.act(val_state)
             val_state, _, val_done = env_val.step(val_action)
         val_perf = env_val.get_performance()
 
-        agent.epsilon = train_epsilon   # resume training with normal exploration
+        agent.epsilon = train_epsilon  # resume training with normal exploration
 
         if episode % 5 == 0 or episode == 1:
             print(
@@ -627,10 +616,10 @@ def train_agent(symbol: str, df: pd.DataFrame,
                 f"{agent.epsilon:.3f}"
             )
 
-        # Save best model based on validation performance, not training performance
+        # save best model based on validation performance
         if val_perf["total_return_%"] > best_val_return:
             best_val_return = val_perf["total_return_%"]
-            best_state      = {k: v.clone() for k, v in agent.model.state_dict().items()}
+            best_state = {k: v.clone() for k, v in agent.model.state_dict().items()}
 
     # Restore best weights
     if best_state:
@@ -652,17 +641,17 @@ def evaluate_agent(agent: DQNAgent, symbol: str,
     """
     print(f"\n  Evaluating on held-out test period ({len(test_df)} days)...")
 
-    # Generate LSTM predictions for test period
+    # generate LSTM predictions for test period
     lstm_preds_test, lstm_dirs_test = generate_lstm_predictions(test_df, symbol)
 
-    env   = CryptoTradingEnv(test_df, lstm_preds_test, lstm_dirs_test)
-    agent.epsilon = 0.0   # no exploration during evaluation
+    env = CryptoTradingEnv(test_df, lstm_preds_test, lstm_dirs_test)
+    agent.epsilon = 0.0  # no exploration during evaluation
 
     state = env.reset()
-    done  = False
+    done = False
 
     while not done:
-        action = agent.act(state)   # always exploits best known action
+        action = agent.act(state)  # always exploits best known action
         state, _, done = env.step(action)
 
     perf = env.get_performance()
@@ -784,7 +773,7 @@ def get_trading_decision(symbol: str, df: pd.DataFrame) -> dict:
     X = torch.tensor(scaled, dtype=torch.float32).unsqueeze(0)
 
     with torch.no_grad():
-        pred_scaled     = lstm_model(X).item()
+        pred_scaled = lstm_model(X).item()
         direction_logit = lstm_model.forward_direction(X).item()
 
     dummy = np.zeros((1, expected_features), dtype=np.float32)
@@ -795,26 +784,24 @@ def get_trading_decision(symbol: str, df: pd.DataFrame) -> dict:
     up_prob = float(torch.sigmoid(torch.tensor(direction_logit)))
 
     # Build state for RL agent using most recent row
-    current_price  = float(df["Close"].iloc[-1])
-    # Predicted next-day % change from the LSTM's price head - see the
-    # matching comment in CryptoTradingEnv._get_state() for why this no
-    # longer uses the direction head's P(up). up_prob is still computed
-    # above and returned below as an informational number for the user.
-    pred_change    = (lstm_pred - current_price) / current_price
-    rsi            = float(df["RSI"].iloc[-1]) / 100.0
-    macd           = float(df["MACD"].iloc[-1])
-    macd_sig       = float(df["MACD_Signal"].iloc[-1])
-    macd_norm      = float(np.tanh(macd - macd_sig))
-    bb_pct         = float(df["BB_Pct"].iloc[-1])
-    ret_1d         = float(df["Return_1d"].iloc[-1])
-    ret_7d         = float(df["Return_7d"].iloc[-1])
-    vol_ratio      = float(np.tanh(float(df["Volume_Ratio"].iloc[-1]) - 1.0))
+    current_price = float(df["Close"].iloc[-1])
+    # predicted next-day % change from the LSTM price head (see the same
+    # note in CryptoTradingEnv._get_state - direction head wasn't reliable)
+    pred_change = (lstm_pred - current_price) / current_price
+    rsi = float(df["RSI"].iloc[-1]) / 100.0
+    macd = float(df["MACD"].iloc[-1])
+    macd_sig = float(df["MACD_Signal"].iloc[-1])
+    macd_norm = float(np.tanh(macd - macd_sig))
+    bb_pct = float(df["BB_Pct"].iloc[-1])
+    ret_1d = float(df["Return_1d"].iloc[-1])
+    ret_7d = float(df["Return_7d"].iloc[-1])
+    vol_ratio = float(np.tanh(float(df["Volume_Ratio"].iloc[-1]) - 1.0))
 
     state = np.array([
         pred_change, rsi, macd_norm, bb_pct,
         ret_1d, ret_7d, vol_ratio,
-        0.0,   # assume not currently holding for live recommendation
-        0.0,   # no unrealised PnL
+        0.0,  # assume not currently holding for live recommendation
+        0.0,  # no unrealised PnL
     ], dtype=np.float32)
 
     # Load RL agent and get decision
@@ -823,20 +810,19 @@ def get_trading_decision(symbol: str, df: pd.DataFrame) -> dict:
         agent.load(symbol)
     except FileNotFoundError:
         return {
-            "action":      "HOLD",
+            "action": "HOLD",
             "action_code": 1,
             "explanation": "RL agent not trained yet. Run rl_agent.py first.",
-            "lstm_pred":   round(lstm_pred, 2),
-            "change_pct":  round((lstm_pred - current_price) / current_price * 100, 2),
-            "up_prob":     round(up_prob, 4),
+            "lstm_pred": round(lstm_pred, 2),
+            "change_pct": round((lstm_pred - current_price) / current_price * 100, 2),
+            "up_prob": round(up_prob, 4),
         }
 
     action_code = agent.act(state)
-    actions     = {0: "SELL", 1: "HOLD", 2: "BUY"}
-    action      = actions[action_code]
+    actions = {0: "SELL", 1: "HOLD", 2: "BUY"}
+    action = actions[action_code]
 
-    # Q-value for each action, so the dashboard can show what the network
-    # actually output (not just the argmax action that was picked).
+    # Q-value for each action, so the dashboard can show more than just the pick
     state_tensor = torch.tensor(state, dtype=torch.float32).unsqueeze(0)
     with torch.no_grad():
         q_raw = agent.model(state_tensor).squeeze(0).numpy()
@@ -866,23 +852,21 @@ def get_trading_decision(symbol: str, df: pd.DataFrame) -> dict:
     }
 
     decision = {
-        "action":      action,
+        "action": action,
         "action_code": action_code,
         "explanation": explanations[action_code],
-        "lstm_pred":   round(lstm_pred, 2),
-        "change_pct":  round((lstm_pred - current_price) / current_price * 100, 2),
-        "up_prob":     round(up_prob, 4),
+        "lstm_pred": round(lstm_pred, 2),
+        "change_pct": round((lstm_pred - current_price) / current_price * 100, 2),
+        "up_prob": round(up_prob, 4),
         "q_values": {
             "SELL": round(float(q_raw[0]), 4),
             "HOLD": round(float(q_raw[1]), 4),
-            "BUY":  round(float(q_raw[2]), 4),
+            "BUY": round(float(q_raw[2]), 4),
         },
     }
 
-    # If this coin has saved backtest results (written by run_rl_pipeline's
-    # training run), gate the raw action against them so the live view
-    # matches the same confidence check the training pipeline applies -
-    # otherwise fall back to the raw, ungated signal.
+    # if this coin has saved backtest results, gate the raw action against
+    # them so live matches training's confidence check - else use raw signal
     backtest_path = f"{tag}_backtest_results.json"
     if os.path.exists(backtest_path):
         with open(backtest_path) as f:
@@ -897,29 +881,25 @@ def get_trading_decision(symbol: str, df: pd.DataFrame) -> dict:
 
 def apply_confidence_gate(decision: dict, test_return: float, test_buy_hold: float) -> dict:
     """
-    Downgrade a live BUY/SELL recommendation to HOLD unless this coin's agent
-    both (a) beat a simple buy & hold on its own test backtest, and (b) was
-    actually profitable on that backtest.
-
-    Checking only (a) let a losing strategy pass the gate as long as it lost
-    less than buy & hold - e.g. -14.80% still "beat" a -19.00% hold, but
-    neither result is something a live BUY/SELL should be built on. Both
-    checks now have to pass before the raw action is trusted.
+    Downgrade a live BUY/SELL to HOLD unless this coin's agent both beat
+    buy & hold on its test backtest AND was actually profitable. Checking
+    only "beat buy & hold" let a losing strategy through as long as it lost
+    less than holding would have - not good enough for a live call.
     """
-    beat_hold     = test_return > test_buy_hold
+    beat_hold = test_return > test_buy_hold
     is_profitable = test_return > 0
-    passed_gate   = beat_hold and is_profitable
+    passed_gate = beat_hold and is_profitable
 
     decision["beat_buy_hold"] = beat_hold
     decision["is_profitable"] = is_profitable
-    decision["test_return"]   = round(test_return, 2)
+    decision["test_return"] = round(test_return, 2)
     decision["test_buy_hold"] = round(test_buy_hold, 2)
 
     if not passed_gate and decision["action"] != "HOLD":
-        decision["raw_action"]      = decision["action"]
+        decision["raw_action"] = decision["action"]
         decision["raw_action_code"] = decision["action_code"]
-        decision["action"]         = "HOLD"
-        decision["action_code"]    = 1
+        decision["action"] = "HOLD"
+        decision["action_code"] = 1
 
         reasons = []
         if not is_profitable:
@@ -977,18 +957,17 @@ def run_rl_pipeline(symbols: list[str], episodes: int = 50):
 
             def add_cross_asset_features(df, btc_df):
                 df = df.copy()
-                shared_idx  = df.index.intersection(btc_df.index)
-                df          = df.loc[shared_idx]
+                shared_idx = df.index.intersection(btc_df.index)
+                df = df.loc[shared_idx]
                 btc_aligned = btc_df.loc[shared_idx]
                 df["BTC_Return_1d"] = btc_aligned["Return_1d"].values
                 df["BTC_Return_7d"] = btc_aligned["Return_7d"].values
-                df["BTC_RSI"]       = btc_aligned["RSI"].values
-                df["BTC_MACD"]      = btc_aligned["MACD"].values
+                df["BTC_RSI"] = btc_aligned["RSI"].values
+                df["BTC_MACD"] = btc_aligned["MACD"].values
                 df.dropna(inplace=True)
                 return df
-            # Match crypto_model.py's training window so the RL agent sees the
-            # same bull/bear regimes the LSTM was retrained on, not just the
-            # last ~3 years of mostly-rising prices
+            # match crypto_model.py's training window so the RL agent sees the
+            # same bull/bear history the LSTM trained on
             all_data = fetch_crypto_data([symbol, "BTC-USD"], days=3000)
             df = add_technical_indicators(all_data[symbol])
 
@@ -996,30 +975,29 @@ def run_rl_pipeline(symbols: list[str], episodes: int = 50):
                 btc_df = add_technical_indicators(all_data["BTC-USD"])
                 df = add_cross_asset_features(df, btc_df)
 
-            # Train + Test the RL agent
+            # train + test the RL agent
             agent, test_df, best_val_return, val_buy_hold = train_agent(symbol, df, episodes=episodes)
             test_results = evaluate_agent(agent, symbol, test_df)
 
-            # Save this coin's backtest numbers so the live decision path
-            # (get_trading_decision, used by the dashboard) can gate against
-            # them later without needing to retrain.
+            # save backtest numbers so get_trading_decision can gate live
+            # calls against them later without retraining
             tag = symbol.replace("-", "_")
             with open(f"{tag}_backtest_results.json", "w") as f:
                 json.dump({
-                    "test_return":   test_results["total_return_%"],
+                    "test_return": test_results["total_return_%"],
                     "test_buy_hold": test_results["buy_hold_return_%"],
                 }, f)
 
-            # Initialise results entry if it doesn't exist yet
+            # set up results entry if it doesn't exist yet
             if symbol not in results:
                 results[symbol] = {}
 
             results[symbol]["best_val_return"] = best_val_return
-            results[symbol]["val_buy_hold"]    = val_buy_hold
-            results[symbol]["test_return"]     = test_results["total_return_%"]
-            results[symbol]["test_buy_hold"]   = test_results["buy_hold_return_%"]
-            results[symbol]["test_win_rate"]   = test_results["win_rate_%"]
-            results[symbol]["test_trades"]     = test_results["total_trades"]
+            results[symbol]["val_buy_hold"] = val_buy_hold
+            results[symbol]["test_return"] = test_results["total_return_%"]
+            results[symbol]["test_buy_hold"] = test_results["buy_hold_return_%"]
+            results[symbol]["test_win_rate"] = test_results["win_rate_%"]
+            results[symbol]["test_trades"] = test_results["total_trades"]
 
             # Get a live decision using current market data
             print("\n  Getting live trading decision...")
@@ -1094,6 +1072,6 @@ if __name__ == "__main__":
     ]
 
     run_rl_pipeline(
-        symbols  = COINS,
-        episodes = 50,    # increase to 100+ for better performance
+        symbols = COINS,
+        episodes = 50,  # increase to 100+ for better performance
     )

@@ -1,286 +1,77 @@
-# Crypto Financial Advisor Bot
+# Coin Compass
 
-An AI-powered cryptocurrency advisor that combines a trained LSTM machine
-learning model with a large language model (Claude) to provide plain-English
-price predictions and market analysis for Bitcoin, Ethereum, and BNB.
+Coin Compass is a crypto price prediction and trading advisor built as a university final project. It combines an LSTM price model, a reinforcement learning trading agent, a Streamlit dashboard, and a chatbot that explains what the models are actually saying, all wrapped around a simple idea: make crypto analysis understandable to someone with no trading or machine learning background, not just to someone who already knows what a state vector is.
 
----
+Everything here is for educational use only. It is not financial advice, and none of the trading is done with real money.
 
-## What this project does
+## What is actually in here
 
-- Fetches live cryptocurrency data from Yahoo Finance
-- Uses a trained PyTorch LSTM model to predict next-day closing prices
-- Displays predictions on an interactive Streamlit dashboard
-- Provides a chatbot powered by the Anthropic API that explains
-  predictions in plain English
+**crypto_model.py**
+Trains the LSTM that predicts next day price and direction for each coin. Pulls historical OHLCV data, builds 23 technical indicator features, and trains a two headed model, one head for price, one for direction. Saves a `_model.pt` and `_scaler.pkl` file per coin when it finishes.
 
----
-
-## Requirements
-
-- Python 3.11 or higher
-- An Anthropic API key (free to obtain - see Step 3 below)
-- Internet connection (for live data and the chatbot)
-
----
-
-## Setup instructions
-
-### Step 1: Download the project
-
-Download the project folder and unzip it. You should have:
-
-```
-FinancialAdvisorBot/
-├── crypto_model.py
-├── predict.py
-├── dashboard.py
-├── pages/
-│   └── 1_Chat.py
-├── evaluate_chatbot.py
-├── test_project.py
-├── requirements.txt
-└── README.md
-```
-
-Open PowerShell (Windows) or Terminal (Mac/Linux) and navigate
-to the project folder:
-
-```
-cd path/to/FinancialAdvisorBot
-```
-
----
-
-### Step 2: Install dependencies
-
-Install all required packages using:
-
-```
-pip install -r requirements.txt
-```
-
-This installs PyTorch, Streamlit, the Anthropic SDK, yfinance,
-and all other required libraries. This may take a few minutes.
-
----
-
-### Step 3: Get an Anthropic API key
-
-The chatbot requires an Anthropic API key to function.
-
-1. Go to https://console.anthropic.com
-2. Sign up for a free account
-3. Navigate to Settings → API Keys
-4. Click Create Key and copy the key shown
-
-New accounts receive free credits which are more than sufficient
-for running this project.
-
----
-
-### Step 4 — Train the model
-
-Before running the dashboard you must train the LSTM model.
-This downloads historical data and trains three separate models
-(one per coin). This step takes approximately 10-15 minutes.
-
+Run it with:
 ```
 python crypto_model.py
 ```
 
-When complete you will see a summary like:
+**rl_agent.py**
+Trains the DQN trading agent for each coin, using the LSTM's predicted price change as one of nine inputs it considers. Backtests the agent against a simple buy and hold strategy and saves the result, so the dashboard can gate live recommendations against real backtest performance rather than just trusting whatever the agent says. Saves a `_rl_model.pt` and `_backtest_results.json` per coin.
 
+Run it with:
 ```
-SUMMARY
-BTC-USD   $62,573  ->  $63,342  ▲ 1.23%  |  Dir Acc: 51.2%
-ETH-USD   $1,858   ->  $1,858   ▼ 0.05%  |  Dir Acc: 50.97%
-BNB-USD   $585     ->  $598     ▲ 2.20%  |  Dir Acc: 43.84%
-```
-
-This also creates nine files in your project folder:
-
-```
-BTC_USD_model.pt      BTC_USD_scaler.pkl      BTC_USD_features.pkl
-ETH_USD_model.pt      ETH_USD_scaler.pkl      ETH_USD_features.pkl
-BNB_USD_model.pt      BNB_USD_scaler.pkl      BNB_USD_features.pkl
+python rl_agent.py
 ```
 
-These files are required by the dashboard and chatbot.
+**predict.py**
+Shared helper functions both the dashboard and the chatbot rely on: fetching live data, building the same features the models were trained on, loading a saved model, and running a prediction. Not something you run directly, everything else imports from it.
 
----
+**dashboard.py**
+The actual app. Shows live predictions, the AI trading recommendation, technical indicators, and a paper trading simulator you can practice on with a pretend ten thousand dollar balance. Has three display modes, Basic, Simple, and Advanced, so the same app works whether you know nothing about trading or you want to see the model internals.
 
-### Step 5: Set your API key
-
-Set your Anthropic API key as an environment variable.
-You must do this in the same terminal window you use to run the app.
-
-**Windows (PowerShell):**
-```
-$env:ANTHROPIC_API_KEY = "your-key-here"
-```
-
-**Mac/Linux:**
-```
-export ANTHROPIC_API_KEY="your-key-here"
-```
-
-Replace "your-key-here" with your actual key from Step 3.
-
-You can verify it is set correctly by running:
-
-**Windows:**
-```
-echo $env:ANTHROPIC_API_KEY
-```
-
-**Mac/Linux:**
-```
-echo $ANTHROPIC_API_KEY
-```
-
-It should print your key, not the word "api_key" or blank.
-
----
-
-### Step 6: Run the dashboard
-
+Run it with:
 ```
 streamlit run dashboard.py
 ```
 
-This opens a browser tab automatically at http://localhost:8501
+**chat.py**
+The chatbot page. Answers questions about a coin using the live prediction and indicator data as grounding, so it is not just making things up, it is working from the same numbers the dashboard shows. Calls the Anthropic API, so you need an API key set for this one to work.
 
-You will see:
-- A sidebar to select a coin (Bitcoin, Ethereum, or BNB)
-- The current price and tomorrow's prediction
-- Traffic light indicators for RSI, MACD, and Bollinger Bands
-- A 90-day price history chart
-- A Chat page in the sidebar navigation for the AI chatbot
-
----
-
-## Using the chatbot:
-
-Click Chat in the sidebar navigation to open the chatbot page.
-You can ask questions such as:
-
-- "What will BTC do tomorrow?"
-- "How does ETH look right now?"
-- "What does RSI mean?"
-- "Compare BTC and ETH"
-- "Should I be worried about BNB?"
-
-The chatbot fetches a live prediction from the model and explains
-it in plain English alongside relevant technical indicators.
-
-Note: the chatbot requires your ANTHROPIC_API_KEY to be set
-(Step 5) before it will respond.
-
----
-
-## Optional: run tests
-
-To verify everything is working correctly run the unit test suite:
-
+**check_coin_data.py**
+A small script used early on to check whether a candidate coin actually has enough historical data on Yahoo Finance to be worth training a model on. Not part of the running app, just a sanity check tool used while deciding the final coin list.
 ```
-python test_project.py
+python check_coin_data.py
 ```
 
-All 48 tests should pass. This confirms the data pipeline, model
-architecture, live prediction, and coin detection are all functioning.
+## Setting up
 
-To run the chatbot faithfulness evaluation (requires API key):
-
+You will need Python installed, along with these packages:
 ```
-python FactualConsistency.py
+pip install streamlit torch pandas numpy yfinance anthropic
 ```
 
-This runs 12 test prompts through the live chatbot and checks
-that responses are factually consistent with the prediction data.
-
----
-
-## Running live predictions without the dashboard
-
-To see live predictions in the terminal without launching the dashboard:
-
+For the chatbot to work, set your Anthropic API key as an environment variable before running the dashboard:
 ```
-python predict.py
+export ANTHROPIC_API_KEY=your_key_here
+```
+On Windows PowerShell that would be:
+```
+$env:ANTHROPIC_API_KEY = 'your_key_here'
 ```
 
-Output example:
+## Coins covered
 
-```
-====================================================
-  Live predictions  -  2026-07-31 14:32
-====================================================
+Thirteen coins in total: Bitcoin, Ethereum, BNB, XRP, Solana, Cardano, Dogecoin, TRON, Chainlink, Avalanche, Stellar, Litecoin, and Bitcoin Cash. Each one needs its own trained LSTM model and RL agent before the dashboard will show real data for it, run crypto_model.py and rl_agent.py first or the dashboard will just be missing that coin's files.
 
-  BTC-USD
-  ------------------------------
-  Fetching live data... 91 rows up to 2026-07-31
-  Last close:    $   62,573.44
-  Predicted:     $   63,342.81  (+1.23%  UP)
-  RSI:           49.7  (neutral)
-====================================================
-```
+## Order to run things in
 
----
+If you are setting this up from scratch, the order matters:
 
-## Troubleshooting
+1. `crypto_model.py`, trains the price prediction model for every coin.
+2. `rl_agent.py`, trains the trading agent, using the LSTM models saved in step one.
+3. `streamlit run dashboard.py`, launches the actual app once both sets of models exist.
 
-**"No trained model found" error**
-Run crypto_model.py first (Step 4). The model files must exist
-before the dashboard or chatbot will work.
+Skipping straight to the dashboard without running the first two will just give you errors, since it is looking for saved model files that will not exist yet.
 
-**"ANTHROPIC_API_KEY not set" error**
-Set your API key in the same terminal window you use to run
-streamlit (Step 5). Opening a new terminal window loses the variable.
+## A note on the numbers
 
-**"python predict.py" produces no output**
-Check the file is not empty: run "dir predict.py" in PowerShell.
-If it shows 0 bytes, re-download the file.
-
-**Dashboard shows stale prices**
-Click the Refresh Data button in the sidebar to force a fresh
-data fetch and model run.
-
-**Streamlit not found**
-Run "pip install streamlit" and try again.
-
----
-
-## Project structure
-
-| File | Purpose |
-|---|---|
-| crypto_model.py | Trains the LSTM model and saves model files |
-| predict.py | Fetches live data and runs the trained model |
-| dashboard.py | Main Streamlit dashboard page |
-| pages/1_Chat.py | Chatbot page using the Anthropic API |
-| evaluate_chatbot.py | Automated faithfulness evaluation |
-| test_project.py | Unit tests for all pipeline components |
-| requirements.txt | All required Python packages |
-
----
-
-## Notes on reproducibility
-
-A fixed random seed (42) is applied during training, ensuring
-that anyone running crypto_model.py with the same dependencies
-on the same date will obtain identical model weights and
-evaluation results.
-
-Since training data is fetched live from Yahoo Finance at runtime,
-results may vary slightly between dates as the training window
-shifts forward in time.
-
----
-
-## Disclaimer
-
-This project is for educational purposes only. Predictions are
-generated by a machine learning model and are not guaranteed.
-Cryptocurrency markets are highly volatile. Always do your own
-research before making any investment decisions. This is not
-financial advice.
+Everything the dashboard shows, predicted prices, buy and hold comparisons, the AI recommendation itself, is generated from live data fetched at the time you run it. That means results will look a little different depending on the day you run the pipeline, since the training and test windows always run up to whatever "today" is. This is expected behaviour, not a bug and it is discussed properly in the evaluation writeup.

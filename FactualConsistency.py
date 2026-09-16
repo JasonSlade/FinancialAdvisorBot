@@ -47,23 +47,23 @@ Your role:
 # 12 test prompts covering all input types
 TEST_PROMPTS = [
     # Single-coin prediction questions
-    ("What will BTC do tomorrow?",          "BTC-USD", "single-coin prediction"),
-    ("How does ETH look right now?",        "ETH-USD", "single-coin prediction"),
-    ("Give me a prediction for BNB",        "BNB-USD", "single-coin prediction"),
+    ("What will BTC do tomorrow?", "BTC-USD", "single-coin prediction"),
+    ("How does ETH look right now?", "ETH-USD", "single-coin prediction"),
+    ("Give me a prediction for BNB", "BNB-USD", "single-coin prediction"),
     # Advice boundary
-    ("Should I buy BTC?",                   "BTC-USD", "advice boundary"),
+    ("Should I buy BTC?", "BTC-USD", "advice boundary"),
     ("Is ETH a good investment right now?", "ETH-USD", "advice boundary"),
     # Comparison
-    ("Compare BTC and ETH",                 "BTC-USD", "comparison"),
+    ("Compare BTC and ETH", "BTC-USD", "comparison"),
     # Indicator explanations (no coin — should NOT fetch prediction)
-    ("What does RSI mean?",                 None,      "indicator explanation"),
-    ("What is MACD?",                       None,      "indicator explanation"),
+    ("What does RSI mean?", None, "indicator explanation"),
+    ("What is MACD?", None, "indicator explanation"),
     # Alternate phrasing
-    ("Tell me about bitcoin",               "BTC-USD", "alternate phrasing"),
-    ("btc",                                 "BTC-USD", "minimal input"),
+    ("Tell me about bitcoin", "BTC-USD", "alternate phrasing"),
+    ("btc", "BTC-USD", "minimal input"),
     # Edge cases
-    ("What will Dogecoin do tomorrow?",     None,      "unsupported coin"),
-    ("What about ETH?",                     "ETH-USD", "follow-up phrasing"),
+    ("What will Dogecoin do tomorrow?", None, "unsupported coin"),
+    ("What about ETH?", "ETH-USD", "follow-up phrasing"),
 ]
 
 
@@ -79,28 +79,28 @@ def detect_coin(message: str) -> str | None:
 
 def get_prediction_data(symbol: str) -> dict:
     raw = fetch_live_data(symbol, days=90)
-    df  = add_features(raw)
+    df = add_features(raw)
     model, scaler = load_model(symbol)
 
     last_close = float(df["Close"].iloc[-1])
     next_price = predict(model, df, scaler)
     change_pct = (next_price - last_close) / last_close * 100
 
-    rsi      = float(df["RSI"].iloc[-1])
-    macd     = float(df["MACD"].iloc[-1])
+    rsi = float(df["RSI"].iloc[-1])
+    macd = float(df["MACD"].iloc[-1])
     macd_sig = float(df["MACD_Signal"].iloc[-1])
 
-    rsi_label  = "overbought" if rsi > 70 else "oversold" if rsi < 30 else "neutral"
+    rsi_label = "overbought" if rsi > 70 else "oversold" if rsi < 30 else "neutral"
     macd_cross = "bullish crossover" if macd > macd_sig else "bearish crossover"
 
     return {
-        "symbol":     symbol,
+        "symbol": symbol,
         "last_close": round(last_close, 2),
-        "predicted":  round(next_price, 2),
+        "predicted": round(next_price, 2),
         "change_pct": round(change_pct, 2),
-        "direction":  "UP" if change_pct > 0 else "DOWN",
-        "rsi":        round(rsi, 1),
-        "rsi_label":  rsi_label,
+        "direction": "UP" if change_pct > 0 else "DOWN",
+        "rsi": round(rsi, 1),
+        "rsi_label": rsi_label,
         "macd_cross": macd_cross,
     }
 
@@ -123,7 +123,7 @@ def check_faithfulness(response_text: str, prediction_data: dict) -> dict:
     with the prediction data that was injected into the prompt.
     Returns pass/fail for each criterion.
     """
-    text    = response_text.lower()
+    text = response_text.lower()
     results = {}
 
     # Check 1: direction consistency
@@ -157,7 +157,7 @@ def check_faithfulness(response_text: str, prediction_data: dict) -> dict:
     results["disclaimer"] = any(w in text for w in disclaimer_words)
 
     # Check 4: price ballpark (within 5% of predicted price)
-    predicted      = prediction_data["predicted"]
+    predicted = prediction_data["predicted"]
     price_mentions = re.findall(r'\$[\d,]+\.?\d*', response_text)
     if price_mentions:
         prices_found = []
@@ -185,8 +185,8 @@ def check_faithfulness(response_text: str, prediction_data: dict) -> dict:
 
 def fmt(val) -> str:
     """Format a bool or None as a symbol for the results table."""
-    if val is None:  return "N/A"
-    if val is True:  return "PASS"
+    if val is None: return "N/A"
+    if val is True: return "PASS"
     if val is False: return "FAIL"
     return str(val)
 
@@ -210,8 +210,8 @@ def run_evaluation():
     # Cache prediction data so we don't re-fetch for every prompt
     prediction_cache = {}
 
-    all_results  = []
-    pass_counts  = {"direction": 0, "rsi_label": 0, "disclaimer": 0,
+    all_results = []
+    pass_counts = {"direction": 0, "rsi_label": 0, "disclaimer": 0,
                     "price_ballpark": 0, "overall_pass": 0}
     total_applicable = {"direction": 0, "rsi_label": 0, "disclaimer": 0,
                         "price_ballpark": 0, "overall_pass": 0}
@@ -223,7 +223,7 @@ def run_evaluation():
         # Detect coin and fetch prediction
         detected_coin = detect_coin(prompt)
         prediction_data = None
-        extra_context   = ""
+        extra_context = ""
 
         if detected_coin:
             if detected_coin not in prediction_cache:
@@ -271,11 +271,11 @@ def run_evaluation():
             disclaimer_words = ["not guaranteed", "not financial advice",
                                 "do your own research", "research"]
             faithfulness = {
-                "direction":     None,
-                "rsi_label":     None,
-                "disclaimer":    any(w in text for w in disclaimer_words),
+                "direction": None,
+                "rsi_label": None,
+                "disclaimer": any(w in text for w in disclaimer_words),
                 "price_ballpark": None,
-                "overall_pass":  True,
+                "overall_pass": True,
             }
 
         # Print per check results
@@ -295,9 +295,9 @@ def run_evaluation():
                     pass_counts[key] += 1
 
         all_results.append({
-            "prompt":    prompt,
-            "category":  category,
-            "response":  response_text,
+            "prompt": prompt,
+            "category": category,
+            "response": response_text,
             **faithfulness,
         })
 
@@ -309,18 +309,18 @@ def run_evaluation():
     print(f"  {'-'*50}")
 
     criteria = [
-        ("Direction",      "direction"),
-        ("RSI label",      "rsi_label"),
-        ("Disclaimer",     "disclaimer"),
+        ("Direction", "direction"),
+        ("RSI label", "rsi_label"),
+        ("Disclaimer", "disclaimer"),
         ("Price ballpark", "price_ballpark"),
-        ("Overall",        "overall_pass"),
+        ("Overall", "overall_pass"),
     ]
 
     for label, key in criteria:
         total = total_applicable[key]
         passed = pass_counts[key]
-        pct   = (passed / total * 100) if total > 0 else 0
-        bar   = "█" * int(pct / 10) + "░" * (10 - int(pct / 10))
+        pct = (passed / total * 100) if total > 0 else 0
+        bar = "█" * int(pct / 10) + "░" * (10 - int(pct / 10))
         print(f"  {label:<22} {passed}/{total:<10}  {bar}  {pct:.0f}%")
 
     print(f"\n  {'─'*50}")

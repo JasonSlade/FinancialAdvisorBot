@@ -1,4 +1,4 @@
-﻿"""
+"""
 test_project.py - Unit Tests for the Crypto Financial Advisor Bot
 
 
@@ -120,7 +120,8 @@ class TestSequencePreparation(unittest.TestCase):
         from crypto_model import prepare_sequences, FEATURE_COLUMNS
         data = fetch_crypto_data(["BTC-USD"], days=90)
         df = add_technical_indicators(data["BTC-USD"])
-        self.X_tr, self.X_te, self.y_tr, self.y_te, self.scaler, self.ci = \
+        self.X_tr, self.X_te, self.y_tr, self.y_te, self.dir_tr, self.dir_te, \
+            self.scaler, self.ci = \
             prepare_sequences(df, FEATURE_COLUMNS, lookback=30, test_ratio=0.2)
 
     def test_input_shape_lookback_dimension(self):
@@ -192,8 +193,11 @@ class TestLSTMModel(unittest.TestCase):
         self.assertTrue(hasattr(self.model, "lstm"))
 
     def test_model_has_fc_layer(self):
-        # Fully connected layer must exist for the dense prediction head
-        self.assertTrue(hasattr(self.model, "fc"))
+        # Dense prediction head must exist: shared trunk plus separate
+        # price/direction output layers (model.fc was split into these)
+        self.assertTrue(hasattr(self.model, "trunk"))
+        self.assertTrue(hasattr(self.model, "price_head"))
+        self.assertTrue(hasattr(self.model, "direction_head"))
 
     def test_model_parameters_exist(self):
         # Model must have learnable parameters - empty model would not train

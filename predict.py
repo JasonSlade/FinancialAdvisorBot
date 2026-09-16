@@ -29,11 +29,9 @@ from pathlib import Path
 from datetime import datetime, timedelta
 from sklearn.preprocessing import MinMaxScaler
 
-# model definition - imported directly from crypto_model.py instead of kept
-# as a local copy here, so the two files can never define the model
-# differently. (This used to be a duplicate class definition that silently
-# drifted out of sync when crypto_model.py's architecture changed - that's
-# what caused the state_dict load error.)
+# import the model class from crypto_model.py instead of a local copy -
+# had a bug before where a copy-pasted version drifted out of sync and
+# caused a state_dict load error
 
 from crypto_model import CryptoLSTM
 
@@ -47,7 +45,7 @@ FEATURE_COLUMNS = [
     "Return_1d", "Return_7d", "Return_14d", "HL_Range",
 ]
 
-LOOKBACK = 30   # must match what you trained with
+LOOKBACK = 30  # must match what you trained with
 
 # Check if in test mode
 
@@ -227,28 +225,28 @@ def add_features(df: pd.DataFrame) -> pd.DataFrame:
     l = to_series("Low")
     v = to_series("Volume")
 
-    sma7  = c.rolling(7).mean()
+    sma7 = c.rolling(7).mean()
     sma21 = c.rolling(21).mean()
-    e12   = c.ewm(span=12, adjust=False).mean()
-    e26   = c.ewm(span=26, adjust=False).mean()
-    macd  = e12 - e26
-    sig   = macd.ewm(span=9, adjust=False).mean()
-    hist  = macd - sig
+    e12 = c.ewm(span=12, adjust=False).mean()
+    e26 = c.ewm(span=26, adjust=False).mean()
+    macd = e12 - e26
+    sig = macd.ewm(span=9, adjust=False).mean()
+    hist = macd - sig
 
     delta = c.diff()
-    gain  = delta.clip(lower=0).rolling(14).mean()
-    loss  = (-delta.clip(upper=0)).rolling(14).mean()
-    rsi   = 100 - (100 / (1 + gain / (loss + 1e-9)))
+    gain = delta.clip(lower=0).rolling(14).mean()
+    loss = (-delta.clip(upper=0)).rolling(14).mean()
+    rsi = 100 - (100 / (1 + gain / (loss + 1e-9)))
 
-    s20   = c.rolling(20).mean()
-    std   = c.rolling(20).std()
-    bbu   = s20 + 2 * std
-    bbl   = s20 - 2 * std
-    bbw   = bbu - bbl
-    bbp   = (c - bbl) / (bbw + 1e-9)
+    s20 = c.rolling(20).mean()
+    std = c.rolling(20).std()
+    bbu = s20 + 2 * std
+    bbl = s20 - 2 * std
+    bbw = bbu - bbl
+    bbp = (c - bbl) / (bbw + 1e-9)
 
-    vsma  = v.rolling(14).mean()
-    vr    = v / (vsma + 1e-9)
+    vsma = v.rolling(14).mean()
+    vr = v / (vsma + 1e-9)
 
     out = pd.DataFrame({
         "Open": to_series("Open"), "High": h, "Low": l,
@@ -292,7 +290,7 @@ def predict(model, df: pd.DataFrame, scaler) -> float:
     through the model, then inverse-transform back to USD.
     """
     n_features = len(FEATURE_COLUMNS)
-    close_idx  = FEATURE_COLUMNS.index("Close")
+    close_idx = FEATURE_COLUMNS.index("Close")
 
     # Slice the last 30 rows
     recent = df[FEATURE_COLUMNS].values[-LOOKBACK:].astype(np.float32)
@@ -343,10 +341,10 @@ def run(symbols: list[str]):
             model, scaler = load_model(symbol)
 
             # 4. Predict
-            last_close  = float(df["Close"].iloc[-1])
-            next_price  = predict(model, df, scaler)
-            change_pct  = (next_price - last_close) / last_close * 100
-            direction   = "UP" if change_pct > 0 else "DOWN"
+            last_close = float(df["Close"].iloc[-1])
+            next_price = predict(model, df, scaler)
+            change_pct = (next_price - last_close) / last_close * 100
+            direction = "UP" if change_pct > 0 else "DOWN"
 
             # 5. Print result
             print(f"  Last close:    ${last_close:>12,.2f}")

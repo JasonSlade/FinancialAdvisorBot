@@ -1,4 +1,4 @@
-﻿# Chatbot page that connects API to LSTM prediction model with streamlit design
+# Chatbot page that connects API to LSTM prediction model with streamlit design
 
 
 import streamlit as st
@@ -13,13 +13,13 @@ from rl_agent import get_trading_decision
 
 def add_cross_asset_features(df, btc_df):
     df = df.copy()
-    shared_idx  = df.index.intersection(btc_df.index)
-    df          = df.loc[shared_idx]
+    shared_idx = df.index.intersection(btc_df.index)
+    df = df.loc[shared_idx]
     btc_aligned = btc_df.loc[shared_idx]
     df["BTC_Return_1d"] = btc_aligned["Return_1d"].values
     df["BTC_Return_7d"] = btc_aligned["Return_7d"].values
-    df["BTC_RSI"]       = btc_aligned["RSI"].values
-    df["BTC_MACD"]      = btc_aligned["MACD"].values
+    df["BTC_RSI"] = btc_aligned["RSI"].values
+    df["BTC_MACD"] = btc_aligned["MACD"].values
     df.dropna(inplace=True)
     return df
 
@@ -27,9 +27,7 @@ def add_cross_asset_features(df, btc_df):
 st.set_page_config(page_title="Chat - Crypto Advisor", layout="wide")
 
 
-# CUSTOM STYLING - same neutral theme as dashboard.py: white cards on a
-# light slate background, thin borders instead of solid colour fills,
-# Inter for text and JetBrains Mono for numbers.
+# custom styling - same theme as dashboard.py (white cards, light background)
 
 st.markdown("""
 <style>
@@ -217,13 +215,13 @@ def get_prediction_data(symbol):
         rl_df = df.copy()
         if symbol != "BTC-USD":
             btc_raw = fetch_live_data("BTC-USD", days=90)
-            btc_df  = add_features(btc_raw)
-            rl_df   = add_cross_asset_features(rl_df, btc_df)
+            btc_df = add_features(btc_raw)
+            rl_df = add_cross_asset_features(rl_df, btc_df)
         rl = get_trading_decision(symbol, rl_df)
-        rl_action      = rl["action"]
+        rl_action = rl["action"]
         rl_explanation = rl["explanation"]
     except Exception:
-        rl_action      = "HOLD"
+        rl_action = "HOLD"
         rl_explanation = "RL recommendation unavailable"
 
     # return structured prediction data
@@ -236,7 +234,7 @@ def get_prediction_data(symbol):
         "rsi": round(rsi, 1),
         "rsi_label": rsi_label,
         "macd_cross": macd_cross,
-        "rl_action":      rl_action,
+        "rl_action": rl_action,
         "rl_explanation": rl_explanation,
     }
 
