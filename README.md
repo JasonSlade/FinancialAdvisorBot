@@ -2,7 +2,7 @@
 
 An AI-powered cryptocurrency advisor that combines a trained LSTM machine
 learning model with a large language model (Claude) to provide plain-English
-price predictions and market analysis for Bitcoin, Ethereum, and BNB.
+price predictions and market analysis for 13 coins.
 
 ---
 
