@@ -1,7 +1,7 @@
 # Crypto Financial Advisor Bot
 
 An AI-powered cryptocurrency advisor that combines a trained LSTM machine
-learning model with a large language model (Claude) to provide plain-English
+learning model with a large language model (Anthropic) to provide plain-English
 price predictions and market analysis for 13 coins.
 
 ---
@@ -34,7 +34,7 @@ Download the project folder and unzip it. You should have:
 FinancialAdvisorBot/
 ├── crypto_model.py
 ├── predict.py
-├── dashboard.py
+├── Dashboard.py
 ├── pages/
 │   └── 1_Chat.py
 ├── evaluate_chatbot.py
@@ -52,9 +52,28 @@ cd path/to/FinancialAdvisorBot
 
 ---
 
-### Step 2: Install dependencies
+### Step 2: Create a virtual environment and install dependencies
 
-Install all required packages using:
+Create a virtual environment so the project's packages don't clash
+with anything else installed on your machine, then activate it:
+
+**Windows (PowerShell):**
+```
+python -m venv venv
+venv\Scripts\activate
+```
+
+**Mac/Linux:**
+```
+python3 -m venv venv
+source venv/bin/activate
+```
+
+Your terminal prompt should now be prefixed with `(venv)`. You'll
+need to activate it again with the same command any time you open
+a new terminal window to work on this project.
+
+With the virtual environment active, install all required packages:
 
 ```
 pip install -r requirements.txt
@@ -150,7 +169,7 @@ It should print your key, not the word "api_key" or blank.
 ### Step 6: Run the dashboard
 
 ```
-streamlit run dashboard.py
+streamlit run Dashboard.py
 ```
 
 This opens a browser tab automatically at http://localhost:8501
@@ -260,7 +279,7 @@ Run "pip install streamlit" and try again.
 |---|---|
 | crypto_model.py | Trains the LSTM model and saves model files |
 | predict.py | Fetches live data and runs the trained model |
-| dashboard.py | Main Streamlit dashboard page |
+| Dashboard.py | Main Streamlit dashboard page |
 | pages/1_Chat.py | Chatbot page using the Anthropic API |
 | evaluate_chatbot.py | Automated faithfulness evaluation |
 | test_project.py | Unit tests for all pipeline components |

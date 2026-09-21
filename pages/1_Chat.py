@@ -27,7 +27,7 @@ def add_cross_asset_features(df, btc_df):
 st.set_page_config(page_title="Chat - Crypto Advisor", layout="wide")
 
 
-# custom styling - same theme as dashboard.py (white cards, light background)
+# custom styling - same theme as Dashboard.py (white cards, light background)
 
 st.markdown("""
 <style>
@@ -91,7 +91,7 @@ st.markdown("""
         border-color: var(--accent-dark);
     }
 
-    /* Notice box, matches dashboard.py's disclaimer/notice styling */
+    /* Notice box, matches Dashboard.py's disclaimer/notice styling */
     .notice-box {
         background: var(--surface);
         border: 1px solid var(--border);

@@ -1,5 +1,5 @@
 # pip install streamlit
-# run: streamlit run dashboard.py
+# run: streamlit run Dashboard.py
 
 """
 Documentation used:

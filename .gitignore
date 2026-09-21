@@ -1,0 +1,22 @@
+# Virtual environment
+venv/
+crypto_env/
+.venv/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Secrets - never commit API keys
+.env
+.env.*
+.streamlit/secrets.toml
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
