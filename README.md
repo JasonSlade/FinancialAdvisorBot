@@ -71,11 +71,13 @@ The chatbot requires an Anthropic API key to function.
 
 1. Go to https://console.anthropic.com
 2. Sign up for a free account
-3. Navigate to Settings → API Keys
+3. Navigate to Settings -> API Keys
 4. Click Create Key and copy the key shown
 
 New accounts receive free credits which are more than sufficient
 for running this project.
+
+Or if you are one of the markers, please feel free to use the key provided in my report.
 
 ---
 
@@ -96,14 +98,16 @@ SUMMARY
 BTC-USD   $62,573  ->  $63,342  ▲ 1.23%  |  Dir Acc: 51.2%
 ETH-USD   $1,858   ->  $1,858   ▼ 0.05%  |  Dir Acc: 50.97%
 BNB-USD   $585     ->  $598     ▲ 2.20%  |  Dir Acc: 43.84%
+...
 ```
 
-This also creates nine files in your project folder:
+This also creates files in your project folder:
 
 ```
 BTC_USD_model.pt      BTC_USD_scaler.pkl      BTC_USD_features.pkl
 ETH_USD_model.pt      ETH_USD_scaler.pkl      ETH_USD_features.pkl
 BNB_USD_model.pt      BNB_USD_scaler.pkl      BNB_USD_features.pkl
+...
 ```
 
 These files are required by the dashboard and chatbot.

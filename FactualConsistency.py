@@ -200,7 +200,7 @@ def run_evaluation():
         print("Run: $env:ANTHROPIC_API_KEY = 'your-key'")
         return
 
-    client = anthropic.Anthropic()
+    client = anthropic.Anthropic(api_key=api_key.strip() if isinstance(api_key, str) else api_key)
 
     print("\n" + "="*70)
     print("  CHATBOT FAITHFULNESS EVALUATION")

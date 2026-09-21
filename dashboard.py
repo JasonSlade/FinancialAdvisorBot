@@ -1454,12 +1454,33 @@ if not IS_BASIC:
             "RSI", "MACD", "MACD_Signal", "BB_Pct",
             "Return_1d", "Return_7d", "Volume_Ratio",
         ]
+        # one-line, plain-English description of what each indicator actually
+        # measures - shown alongside its correlation value so the table is
+        # readable without prior technical-analysis knowledge
+        INDICATOR_DESCRIPTIONS = {
+            "RSI": "Relative Strength Index (0-100) - how overbought or "
+                   "oversold the coin looks based on recent price moves.",
+            "MACD": "Gap between a fast and slow moving average - a "
+                    "positive/negative swing signals building momentum.",
+            "MACD_Signal": "A smoothed average of the MACD line itself, "
+                            "used to spot MACD crossovers.",
+            "BB_Pct": "Bollinger Band %B - where price sits within its "
+                      "recent volatility band (near 0 = lower band, near "
+                      "1 = upper band).",
+            "Return_1d": "The coin's own percentage price change over the "
+                         "last 1 day.",
+            "Return_7d": "The coin's own percentage price change over the "
+                         "last 7 days.",
+            "Volume_Ratio": "Today's trading volume versus its recent "
+                            "average - above 1 means busier than usual.",
+        }
         next_day_return = eda_df["Return_1d"].shift(-1)
         corr_rows = []
         for col in indicator_cols:
             if col in eda_df.columns:
                 corr_rows.append({
                     "Indicator": col,
+                    "What it measures": INDICATOR_DESCRIPTIONS.get(col, ""),
                     "Correlation with next-day return": round(
                         float(eda_df[col].corr(next_day_return)), 3
                     ),

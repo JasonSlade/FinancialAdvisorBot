@@ -111,11 +111,38 @@ st.title("Ask the Advisor")
 st.caption("Chat with an AI advisor backed by the trained LSTM model and RL agent")
 
 
-# coins the chatbot currently supports
+# the 13 coins the app supports - label shown in the dropdown, plus the      
+# ticker/name keywords detect_coin() looks for when typed in chat
+COIN_OPTIONS = {
+    "Bitcoin (BTC)": "BTC-USD",
+    "Ethereum (ETH)": "ETH-USD",
+    "BNB (BNB)": "BNB-USD",
+    "XRP (XRP)": "XRP-USD",
+    "Solana (SOL)": "SOL-USD",
+    "Cardano (ADA)": "ADA-USD",
+    "Dogecoin (DOGE)": "DOGE-USD",
+    "TRON (TRX)": "TRX-USD",
+    "Chainlink (LINK)": "LINK-USD",
+    "Avalanche (AVAX)": "AVAX-USD",
+    "Stellar (XLM)": "XLM-USD",
+    "Litecoin (LTC)": "LTC-USD",
+    "Bitcoin Cash (BCH)": "BCH-USD",
+}
+
 SUPPORTED_COINS = {
     "btc": "BTC-USD", "bitcoin": "BTC-USD",
     "eth": "ETH-USD", "ethereum": "ETH-USD",
     "bnb": "BNB-USD", "binance": "BNB-USD",
+    "xrp": "XRP-USD", "ripple": "XRP-USD",
+    "sol": "SOL-USD", "solana": "SOL-USD",
+    "ada": "ADA-USD", "cardano": "ADA-USD",
+    "doge": "DOGE-USD", "dogecoin": "DOGE-USD",
+    "trx": "TRX-USD", "tron": "TRX-USD",
+    "link": "LINK-USD", "chainlink": "LINK-USD",
+    "avax": "AVAX-USD", "avalanche": "AVAX-USD",
+    "xlm": "XLM-USD", "stellar": "XLM-USD",
+    "ltc": "LTC-USD", "litecoin": "LTC-USD",
+    "bch": "BCH-USD", "bitcoin cash": "BCH-USD",
 }
 
 
@@ -153,7 +180,7 @@ if not api_key:
 
 
 # create Claude API client
-client = anthropic.Anthropic()
+client = anthropic.Anthropic(api_key=api_key.strip() if isinstance(api_key, str) else api_key)
 
 
 
@@ -262,7 +289,7 @@ if "messages" not in st.session_state:
     # create starting chatbot message
     st.session_state.messages = [
         {"role": "assistant", "content":
-            "Hi! Ask me about BTC, ETH, or BNB, and I will pull live predictions "
+            "Hi! Ask me about the 13 coins available, and I will pull live predictions "
             "from the trained model to answer you."}
     ]
 
@@ -272,6 +299,22 @@ if "messages" not in st.session_state:
 with st.sidebar:
 
     st.markdown('<div class="eyebrow">Crypto Advisor</div>', unsafe_allow_html=True)
+
+    # coin dropdown - sets the default coin context for chat questions that
+    # don't name a coin explicitly (e.g. "what's the RSI looking like?")
+    selected_coin_label = st.selectbox(
+        "Coin",
+        options=list(COIN_OPTIONS.keys()),
+        key="selected_coin_label",
+        help="Used when your question doesn't name a coin directly.",
+    )
+    selected_coin_symbol = COIN_OPTIONS[selected_coin_label]
+    st.caption(
+        f"Questions that don't name a coin will use **{selected_coin_label}**. "
+        "Mention a different coin by name to ask about that one instead."
+    )
+
+    st.markdown("---")
 
     # display preset questions
     st.header("Quick questions")
@@ -295,7 +338,8 @@ with st.sidebar:
     # clear stored conversation history
     if st.button("Clear chat", width="stretch"):
         st.session_state.messages = [
-            {"role": "assistant", "content": "Chat cleared. Ask me about BTC, ETH, or BNB."}
+            {"role": "assistant", "content": "Chat cleared. Pick a coin from the dropdown "
+                "above, or just ask about any of the 13 coins by name."}
         ]
         st.rerun()
 
@@ -333,8 +377,9 @@ if user_input:
     # will store prediction values
     extra_context = ""
 
-    # detect coin mentioned by user
-    symbol = detect_coin(user_input)
+    # detect coin mentioned by user; fall back to the sidebar dropdown
+    # selection so questions like "what's the RSI?" still have a coin context
+    symbol = detect_coin(user_input) or selected_coin_symbol
 
 
     # display assistant response
